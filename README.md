@@ -1,3 +1,3 @@
-# Proyecto1-RaspberryPi
+# SpacePongServer
 
 Repository created for project MatrixPlay
