@@ -5,110 +5,30 @@ import java.net.*;
 import java.util.*;
 
 public class Server {
-    private static Set<PrintWriter> clientWriters = Collections.synchronizedSet(new HashSet<>());
+    private static Set<ClientHandler> clientHandlers = Collections.synchronizedSet(new HashSet<>());
+    private static String groupName = "SpacePong Team"; // ← NOMBRE DEL GRUPO
     
-    public static void main(String[] args) {
-        System.out.println("🚀 Servidor Broadcast iniciado en puerto 3000");
+    public static void main(String[] args) throws IOException {
+        System.out.println("🚀 SpacePong Server - Puerto 3000");
+        System.out.println("📍 Grupo: " + groupName);
         
-        // Iniciar el broadcast automático cada 10 segundos
-        startAutoBroadcast();
+        ServerSocket serverSocket = new ServerSocket(3000, 50, InetAddress.getByName("0.0.0.0"));
+        System.out.println("✅ Servidor listo en puerto 3000");
         
-        try (ServerSocket serverSocket = new ServerSocket(3000)) {
-            while (true) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("✅ Nuevo cliente conectado: " + clientSocket.getInetAddress());
-                
-                // Manejar cliente en hilo separado
-                new Thread(new ClientHandler(clientSocket)).start();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        while (true) {
+            Socket clientSocket = serverSocket.accept();
+            ClientHandler clientHandler = new ClientHandler(clientSocket, groupName);
+            clientHandlers.add(clientHandler);
+            new Thread(clientHandler).start();
         }
     }
     
-    // Método para enviar broadcast automático cada 10 segundos
-    private static void startAutoBroadcast() {
-        Thread broadcastThread = new Thread(() -> {
-            int messageCount = 0;
-            try {
-                while (true) {
-                    Thread.sleep(10000); // 10 segundos
-                    messageCount++;
-                    broadcast("¡Hola a todos los clientes! Mensaje #" + messageCount + " desde el servidor");
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        });
-        broadcastThread.setDaemon(true);
-        broadcastThread.start();
-        
-        System.out.println("⏰ Broadcast automático activado (cada 10 segundos)");
+    public static void removeClient(ClientHandler handler) {
+        clientHandlers.remove(handler);
+        System.out.println("👋 Cliente removido. Total: " + clientHandlers.size());
     }
     
-    // Método para enviar broadcast a todos los clientes
-    public static void broadcast(String message) {
-        synchronized (clientWriters) {
-            if (clientWriters.isEmpty()) {
-                System.out.println("⚠️  No hay clientes conectados para enviar: " + message);
-                return;
-            }
-            
-            System.out.println("📢 Enviando broadcast a " + clientWriters.size() + " clientes: " + message);
-            
-            for (PrintWriter writer : clientWriters) {
-                writer.println(message);
-            }
-        }
-    }
-    
-    static class ClientHandler implements Runnable {
-        private Socket socket;
-        private PrintWriter out;
-        
-        public ClientHandler(Socket socket) {
-            this.socket = socket;
-        }
-        
-        @Override
-        public void run() {
-            try {
-                out = new PrintWriter(socket.getOutputStream(), true);
-                
-                // Agregar writer a la lista
-                synchronized (clientWriters) {
-                    clientWriters.add(out);
-                    System.out.println("👥 Clientes conectados: " + clientWriters.size());
-                }
-                
-                // Enviar mensaje de bienvenida
-                out.println("Bienvenido al servidor broadcast!");
-                
-                // Leer mensajes del cliente
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String inputLine;
-                while ((inputLine = in.readLine()) != null) {
-                    System.out.println("📨 Mensaje de cliente: " + inputLine);
-                    // Opcional: reenviar a todos
-                    broadcast("Cliente dice: " + inputLine);
-                }
-                
-            } catch (IOException e) {
-                System.out.println("❌ Cliente desconectado: " + socket.getInetAddress());
-            } finally {
-                // Remover writer al desconectar
-                if (out != null) {
-                    synchronized (clientWriters) {
-                        clientWriters.remove(out);
-                        System.out.println("👥 Clientes restantes: " + clientWriters.size());
-                    }
-                }
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+    public static String getGroupName() {
+        return groupName;
     }
 }
