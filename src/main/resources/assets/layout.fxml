@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane fx:id="root" style="-fx-background-color: #e0ded7;" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.project.Controller">
+   <children>
+      <Canvas fx:id="canvas" height="600.0" width="900.0" />
+   </children>
+</AnchorPane>
