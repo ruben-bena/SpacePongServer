@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
+import org.json.JSONObject;
 
 public class Server extends WebSocketServer {
     private Set<WebSocket> connections = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -22,10 +23,10 @@ public class Server extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         connections.add(conn);
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
-        log("🔌 Cliente conectado desde: " + clientIP);
-        
-        // Enviar configuración inmediatamente al cliente
-        sendGroupConfiguration(conn);
+        log("🔌 Cliente conectado desde: " + clientIP + ". Mandando saludo a todos los clientes...");
+        broadcastToAll("Hola " + clientIP); 
+        // TODO Debería mandar un json no un string, y los clientes deberían saber cómo manejar ese json
+        // TODO Actualizar documentación API cuando se haga ese cambio en el json
     }
     
     @Override
@@ -41,14 +42,15 @@ public class Server extends WebSocketServer {
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
         log("📨 [" + clientIP + "] Mensaje: " + message);
 
-        
-        
-        // Si el cliente pide configuración, reenviar
-        if (message.contains("\"type\"") && message.contains("\"getConfig\"")) {
-            sendGroupConfiguration(conn);
-        } else {
-            // REENVIAR MENSAJE A TODOS LOS DEMÁS CLIENTES (BROADCAST)
-            broadcastToAll(message, conn);
+        JSONObject json = new JSONObject(message);
+        String type = json.getString("type");
+
+        switch (type) {
+            case "configuration":
+                sendGroupConfiguration(conn);
+                break;
+            default:
+                log("'type' no controlado");
         }
     }
     
@@ -68,7 +70,6 @@ public class Server extends WebSocketServer {
     }
     
     private void sendGroupConfiguration(WebSocket conn) {
-        // Enviar configuración del grupo en JSON
         String configMessage = String.format(
             "{\"type\":\"groupConfig\",\"groupName\":\"%s\",\"timestamp\":%d}",
             groupName, System.currentTimeMillis()
@@ -79,11 +80,24 @@ public class Server extends WebSocketServer {
         log("📤 Configuración enviada a " + clientIP + ": " + groupName);
     }
     
-    public void broadcastToAll(String message, WebSocket excludeSender) {
+    private void broadcastToAllExceptSender(String message, WebSocket excludeSender) {
         synchronized (connections) {
             int sentCount = 0;
             for (WebSocket client : connections) {
                 if (client != excludeSender && client.isOpen()) {
+                    client.send(message);
+                    sentCount++;
+                }
+            }
+            log("📢 Broadcast enviado a " + sentCount + " clientes: " + message);
+        }
+    }
+
+    private void broadcastToAll(String message) {
+        synchronized (connections) {
+            int sentCount = 0;
+            for (WebSocket client : connections) {
+                if (client.isOpen()) {
                     client.send(message);
                     sentCount++;
                 }
