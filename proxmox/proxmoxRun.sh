@@ -11,7 +11,7 @@ echo "User: $USER"
 echo "Ruta RSA: $RSA_PATH"
 echo "Server port: $SERVER_PORT"
 
-JAR_NAME="server-package.jar"
+JAR_NAME="spacepong-server-1.0.0-jar-with-dependencies.jar"
 JAR_PATH="./target/$JAR_NAME"
 
 cd ..
