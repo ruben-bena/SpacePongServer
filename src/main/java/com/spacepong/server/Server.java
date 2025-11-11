@@ -1,13 +1,13 @@
-package com.broadcast;
-
-import org.java_websocket.WebSocket;
-import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.server.WebSocketServer;
+package com.spacepong.server;
 
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.java_websocket.WebSocket;
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
 
 public class Server extends WebSocketServer {
     private static Set<WebSocket> connections = Collections.newSetFromMap(new ConcurrentHashMap<>());
