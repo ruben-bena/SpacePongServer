@@ -21,18 +21,10 @@
     </properties>
 
     <dependencies>
-        <!-- WebSocket para el servidor -->
         <dependency>
             <groupId>org.java-websocket</groupId>
             <artifactId>Java-WebSocket</artifactId>
             <version>${java.websocket.version}</version>
-        </dependency>
-
-        <!-- JavaFX (si usas interfaz gráfica en el servidor) -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>17.0.2</version>
         </dependency>
     </dependencies>
 
@@ -57,7 +49,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.broadcast.Server</mainClass>
+                            <mainClass>com.spacepong.server.Server</mainClass>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
                         </manifest>
