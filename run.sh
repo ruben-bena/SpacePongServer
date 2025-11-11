@@ -55,12 +55,6 @@ else
     execArg="-PrunMain -Dexec.mainClass=$mainClass -Djavafx.platform=$javafx_platform"
     echo "Exec args: $execArg"
 
-
-echo "🚀 Compilando y ejecutando Servidor Broadcast..."
-echo "📡 Puerto: 3000"
-echo "⏰ Broadcast automático cada 10 segundos"
-echo "----------------------------------------"
-
     # Execute mvn command
     mvn clean test-compile exec:java $execArg -X
 fi
