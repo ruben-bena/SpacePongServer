@@ -147,3 +147,4 @@ buildNumber.properties
 
 # Python and homebrew
 myenv
+/.vscode
