@@ -10,8 +10,8 @@ import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 
 public class Server extends WebSocketServer {
-    private static Set<WebSocket> connections = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    private static String groupName = "SpacePong";
+    private Set<WebSocket> connections = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private String groupName = "SpacePong";
     
     public Server(int port) {
         super(new InetSocketAddress("0.0.0.0", port));
@@ -22,7 +22,7 @@ public class Server extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         connections.add(conn);
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
-        System.out.println("🔌 Cliente conectado desde: " + clientIP);
+        log("🔌 Cliente conectado desde: " + clientIP);
         
         // Enviar configuración inmediatamente al cliente
         sendGroupConfiguration(conn);
@@ -32,14 +32,16 @@ public class Server extends WebSocketServer {
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
         connections.remove(conn);
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
-        System.out.println("🔌 Cliente desconectado: " + clientIP);
-        System.out.println("👋 Clientes restantes: " + connections.size());
+        log("🔌 Cliente desconectado: " + clientIP);
+        log("👋 Clientes restantes: " + connections.size());
     }
     
     @Override
     public void onMessage(WebSocket conn, String message) {
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
-        System.out.println("📨 [" + clientIP + "] Mensaje: " + message);
+        log("📨 [" + clientIP + "] Mensaje: " + message);
+
+        
         
         // Si el cliente pide configuración, reenviar
         if (message.contains("\"type\"") && message.contains("\"getConfig\"")) {
@@ -60,9 +62,9 @@ public class Server extends WebSocketServer {
     
     @Override
     public void onStart() {
-        System.out.println("🚀 SpacePong Server WebSocket - Puerto 3000");
-        System.out.println("📍 Grupo: " + groupName);
-        System.out.println("✅ Servidor WebSocket listo en puerto 3000");
+        log("🚀 SpacePong Server WebSocket - Puerto 3000");
+        log("📍 Grupo: " + groupName);
+        log("✅ Servidor WebSocket listo en puerto 3000");
     }
     
     private void sendGroupConfiguration(WebSocket conn) {
@@ -74,10 +76,9 @@ public class Server extends WebSocketServer {
         
         conn.send(configMessage);
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
-        System.out.println("📤 Configuración enviada a " + clientIP + ": " + groupName);
+        log("📤 Configuración enviada a " + clientIP + ": " + groupName);
     }
     
-    // MÉTODO DE BROADCAST - ENVIA A TODOS LOS CLIENTES
     public void broadcastToAll(String message, WebSocket excludeSender) {
         synchronized (connections) {
             int sentCount = 0;
@@ -87,12 +88,16 @@ public class Server extends WebSocketServer {
                     sentCount++;
                 }
             }
-            System.out.println("📢 Broadcast enviado a " + sentCount + " clientes: " + message);
+            log("📢 Broadcast enviado a " + sentCount + " clientes: " + message);
         }
     }
     
-    public static String getGroupName() {
+    public String getGroupName() {
         return groupName;
+    }
+
+    private void log(String text) {
+        System.out.println(text);
     }
     
     public static void main(String[] args) throws Exception {
