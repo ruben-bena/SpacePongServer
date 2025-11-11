@@ -1,9 +1,15 @@
 package com.spacepong.server;
 
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
@@ -11,6 +17,7 @@ import org.java_websocket.server.WebSocketServer;
 import org.json.JSONObject;
 
 public class Server extends WebSocketServer {
+    // TODO Usar ClientRegistry en lugar de esto para aprovechar trabajo ya hecho
     private Set<WebSocket> connections = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private String groupName = "SpacePong";
     
@@ -41,10 +48,8 @@ public class Server extends WebSocketServer {
     public void onMessage(WebSocket conn, String message) {
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
         log("📨 [" + clientIP + "] Mensaje: " + message);
-
         JSONObject json = new JSONObject(message);
         String type = json.getString("type");
-
         switch (type) {
             case "configuration":
                 sendGroupConfiguration(conn);
@@ -70,14 +75,25 @@ public class Server extends WebSocketServer {
     }
     
     private void sendGroupConfiguration(WebSocket conn) {
-        String configMessage = String.format(
-            "{\"type\":\"groupConfig\",\"groupName\":\"%s\",\"timestamp\":%d}",
-            groupName, System.currentTimeMillis()
-        );
-        
+        String configMessage = getGroupNameFromJson();
+        JSONObject payload = new JSONObject();
+        payload.put("type", "configuration");
+        payload.put("configMessage", configMessage);
         conn.send(configMessage);
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
         log("📤 Configuración enviada a " + clientIP + ": " + groupName);
+    }
+
+    private String getGroupNameFromJson() {
+        try (JsonReader jsonReader = Json.createReader(new FileReader("config/groups.json"))) {
+            JsonObject jsonObject = jsonReader.readObject();
+            System.out.println(jsonObject);
+            String groupName = jsonObject.getString("name");
+            return groupName;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null; // TODO Esto es una chapuza
     }
     
     private void broadcastToAllExceptSender(String message, WebSocket excludeSender) {
