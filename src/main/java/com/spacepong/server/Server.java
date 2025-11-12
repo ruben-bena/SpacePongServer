@@ -21,9 +21,8 @@ public class Server extends WebSocketServer {
     private Set<WebSocket> connections = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private String groupName = "SpacePong";
     
-    public Server(int port) {
-        super(new InetSocketAddress("0.0.0.0", port));
-        setReuseAddr(true);
+    public Server(InetSocketAddress address) {
+        super(address);
     }
     
     @Override
@@ -69,9 +68,9 @@ public class Server extends WebSocketServer {
     
     @Override
     public void onStart() {
-        log("🚀 SpacePong Server WebSocket - Puerto 3000");
+        log("🚀 SpacePong Server WebSocket - Puerto 3001");
         log("📍 Grupo: " + groupName);
-        log("✅ Servidor WebSocket listo en puerto 3000");
+        log("✅ Servidor WebSocket listo en puerto 3001");
     }
     
     private void sendGroupConfiguration(WebSocket conn) {
@@ -131,7 +130,7 @@ public class Server extends WebSocketServer {
     }
     
     public static void main(String[] args) throws Exception {
-        Server server = new Server(3000);
+        Server server = new Server(new InetSocketAddress(3001));
         server.start();
         System.out.println("🛑 Servidor WebSocket ejecutándose. Presiona Ctrl+C para detener.");
     }
