@@ -44,11 +44,21 @@ if [[ "$action" == "build" ]]; then
     echo "Generating JAR file with all dependencies..."
     mvn clean package -Dmaven.test.skip=true
     echo "JAR generated in target directory."
-    if [ -f target/server-package.jar ]; then
-        echo "Successfully generated JAR: target/server-package.jar"
+    # Detect the assembled JAR
+    JAR_FILE=$(find target -maxdepth 1 -type f -name "*jar-with-dependencies.jar" | head -n 1)
+
+    if [[ -n "$JAR_FILE" ]]; then
+        echo "Successfully generated JAR: $JAR_FILE"
     else
-        echo "Failed to generate JAR."
-        exit 1
+        echo "No jar-with-dependencies found. Looking for default jar..."
+        JAR_FILE=$(find target -maxdepth 1 -type f -name "*.jar" | head -n 1)
+
+        if [[ -n "$JAR_FILE" ]]; then
+            echo "Generated JAR: $JAR_FILE"
+        else
+            echo "Failed to generate any JAR."
+            exit 1
+        fi
     fi
 else
     # Execute mvn command with the profile and main class as arguments

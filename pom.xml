@@ -102,7 +102,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>com.broadcast.Server</mainClass>
+                            <mainClass>com.spacepong.server.Server</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

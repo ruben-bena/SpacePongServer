@@ -68,9 +68,9 @@ public class Server extends WebSocketServer {
     
     @Override
     public void onStart() {
-        log("🚀 SpacePong Server WebSocket - Puerto 3001");
+        log("🚀 SpacePong Server WebSocket - Puerto 3000");
         log("📍 Grupo: " + groupName);
-        log("✅ Servidor WebSocket listo en puerto 3001");
+        log("✅ Servidor WebSocket listo en puerto 3000");
     }
     
     private void sendGroupConfiguration(WebSocket conn) {
@@ -130,7 +130,7 @@ public class Server extends WebSocketServer {
     }
     
     public static void main(String[] args) throws Exception {
-        Server server = new Server(new InetSocketAddress(3001));
+        Server server = new Server(new InetSocketAddress(3000));
         server.start();
         System.out.println("🛑 Servidor WebSocket ejecutándose. Presiona Ctrl+C para detener.");
     }
