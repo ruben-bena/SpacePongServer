@@ -50,7 +50,8 @@ public class Server extends WebSocketServer {
         JSONObject json = new JSONObject(message);
         String type = json.getString("type");
         switch (type) {
-            case "configuration":
+            case "requestConfiguration":
+            System.out.println("Entro en case requestConfiguration");
                 sendGroupConfiguration(conn);
                 break;
             default:
@@ -74,11 +75,12 @@ public class Server extends WebSocketServer {
     }
     
     private void sendGroupConfiguration(WebSocket conn) {
+        System.out.println("entro en sendGroupConfiguration()");
         String configMessage = getGroupNameFromJson();
         JSONObject payload = new JSONObject();
         payload.put("type", "configuration");
         payload.put("configMessage", configMessage);
-        conn.send(configMessage);
+        conn.send(payload.toString());
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
         log("📤 Configuración enviada a " + clientIP + ": " + groupName);
     }
@@ -130,7 +132,7 @@ public class Server extends WebSocketServer {
     }
     
     public static void main(String[] args) throws Exception {
-        Server server = new Server(new InetSocketAddress(3000));
+        Server server = new Server(new InetSocketAddress(3001));
         server.start();
         System.out.println("🛑 Servidor WebSocket ejecutándose. Presiona Ctrl+C para detener.");
     }
