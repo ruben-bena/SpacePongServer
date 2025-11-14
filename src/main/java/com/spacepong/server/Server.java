@@ -132,7 +132,7 @@ public class Server extends WebSocketServer {
     }
     
     public static void main(String[] args) throws Exception {
-        Server server = new Server(new InetSocketAddress(3001));
+        Server server = new Server(new InetSocketAddress(3000));
         server.start();
         System.out.println("🛑 Servidor WebSocket ejecutándose. Presiona Ctrl+C para detener.");
     }
