@@ -3,8 +3,7 @@ package com.spacepong.server;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Collections;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.json.Json;
@@ -18,10 +17,70 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class Server extends WebSocketServer {
-    private Set<WebSocket> connections = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    private Set<String> playerNames = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private Set<WebSocket> allConnections = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    
+    // ✅ SISTEMA MEJORADO DE GESTIÓN DE JUGADORES
+    private Map<WebSocket, Player> players = new ConcurrentHashMap<>();
+    private Map<String, GameSession> activeGames = new ConcurrentHashMap<>();
+    private Queue<Player> availablePlayers = new LinkedList<>();
+    
     private String groupName = "SpacePong";
     private int playerCounter = 1;
+    private int gameCounter = 1;
+    
+    // ✅ CLASE PLAYER PARA MEJOR GESTIÓN
+    private class Player {
+        String id;
+        String name;
+        WebSocket connection;
+        PlayerStatus status;
+        String currentGameId;
+        
+        Player(String name, WebSocket connection) {
+            this.id = "player_" + System.currentTimeMillis() + "_" + playerCounter++;
+            this.name = name;
+            this.connection = connection;
+            this.status = PlayerStatus.AVAILABLE;
+            this.currentGameId = null;
+        }
+    }
+    
+    // ✅ CLASE GAME SESSION
+    private class GameSession {
+        String gameId;
+        Player player1;
+        Player player2;
+        GameStatus status;
+        Date startTime;
+        
+        GameSession(Player p1, Player p2) {
+            this.gameId = "game_" + gameCounter++;
+            this.player1 = p1;
+            this.player2 = p2;
+            this.status = GameStatus.WAITING;
+            this.startTime = new Date();
+            
+            // Marcar jugadores como en juego
+            p1.status = PlayerStatus.IN_GAME;
+            p1.currentGameId = gameId;
+            p2.status = PlayerStatus.IN_GAME;
+            p2.currentGameId = gameId;
+        }
+    }
+    
+    // ✅ ENUMS PARA ESTADOS
+    private enum PlayerStatus {
+        AVAILABLE,      // Conectado y disponible para jugar
+        IN_GAME,        // Actualmente en una partida
+        OFFLINE         // Desconectado
+    }
+    
+    private enum GameStatus {
+        WAITING,        // Esperando para empezar
+        COUNTDOWN,      // En countdown
+        PLAYING,        // Partida en curso
+        FINISHED        // Partida terminada
+    }
     
     public Server(InetSocketAddress address) {
         super(address);
@@ -29,51 +88,73 @@ public class Server extends WebSocketServer {
     
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        connections.add(conn);
+        allConnections.add(conn);
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
         
-        // ✅ ASIGNAR NOMBRE TEMPORAL AL JUGADOR
-        String playerName = "Jugador" + playerCounter++;
-        playerNames.add(playerName);
+        // ✅ CREAR JUGADOR CON NOMBRE TEMPORAL
+        String playerName = "Jugador" + playerCounter;
+        Player newPlayer = new Player(playerName, conn);
+        players.put(conn, newPlayer);
         
-        log("🔌 Cliente conectado: " + playerName + " desde " + clientIP);
-        log("👥 Total de jugadores conectados: " + connections.size());
+        log("🔌 Nuevo jugador: " + playerName + " [" + newPlayer.id + "] desde " + clientIP);
+        log("👥 Jugadores totales: " + players.size() + " | Disponibles: " + getAvailablePlayersCount());
         
-        // ✅ ENVIAR SALUDO INDIVIDUAL (manteniendo compatibilidad)
+        // ✅ ENVIAR SALUDO INDIVIDUAL
         conn.send("Hola " + clientIP);
         
-        // ✅ ENVIAR CONFIRMACIÓN DE CONEXIÓN CON NOMBRE ASIGNADO
-        JSONObject welcomeMsg = new JSONObject();
-        welcomeMsg.put("type", "playerConnected");
-        welcomeMsg.put("playerName", playerName);
-        welcomeMsg.put("playerIndex", connections.size() - 1);
-        welcomeMsg.put("totalPlayers", connections.size());
-        conn.send(welcomeMsg.toString());
+        // ✅ ENVIAR INFORMACIÓN DEL JUGADOR CREADO
+        JSONObject playerInfo = new JSONObject();
+        playerInfo.put("type", "playerCreated");
+        playerInfo.put("playerId", newPlayer.id);
+        playerInfo.put("playerName", playerName);
+        playerInfo.put("playerIndex", players.size() - 1);
+        conn.send(playerInfo.toString());
         
-        // ✅ ENVIAR LISTA ACTUALIZADA DE JUGADORES A TODOS LOS CLIENTES
-        broadcastPlayerList();
+        // ✅ AGREGAR A JUGADORES DISPONIBLES
+        addToAvailablePlayers(newPlayer);
         
-        // ✅ SI HAY 2 JUGADORES, INICIAR COUNTDOWN
-        if (connections.size() >= 2) {
-            startGameCountdown();
-        }
+        // ✅ ENVIAR ESTADO ACTUAL A TODOS
+        broadcastGameState();
+        
+        // ✅ INTENTAR CREAR PARTIDA SI HAY SUFICIENTES JUGADORES
+        tryCreateGame();
     }
     
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        connections.remove(conn);
-        String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
-        log("🔌 Cliente desconectado: " + clientIP);
-        log("👥 Jugadores restantes: " + connections.size());
+        Player player = players.get(conn);
+        if (player != null) {
+            log("🔌 Jugador desconectado: " + player.name + " [" + player.id + "]");
+            
+            // ✅ SI ESTABA EN JUEGO, TERMINAR LA PARTIDA
+            if (player.status == PlayerStatus.IN_GAME && player.currentGameId != null) {
+                endGame(player.currentGameId, "Jugador desconectado");
+            }
+            
+            // ✅ REMOVER DE DISPONIBLES
+            availablePlayers.remove(player);
+            players.remove(conn);
+            player.status = PlayerStatus.OFFLINE;
+        }
         
-        // ✅ ACTUALIZAR LISTA DE JUGADORES PARA LOS QUE QUEDAN
-        broadcastPlayerList();
+        allConnections.remove(conn);
+        log("👥 Jugadores restantes: " + players.size() + " | Disponibles: " + getAvailablePlayersCount());
+        
+        // ✅ ACTUALIZAR ESTADO
+        broadcastGameState();
     }
     
     @Override
     public void onMessage(WebSocket conn, String message) {
+        Player player = players.get(conn);
         String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
-        log("📨 [" + clientIP + "] Mensaje: " + message);
+        
+        if (player == null) {
+            log("❌ Mensaje de conexión no registrada: " + clientIP);
+            return;
+        }
+        
+        log("📨 [" + player.name + "] Mensaje: " + message);
         
         try {
             JSONObject json = new JSONObject(message);
@@ -81,19 +162,25 @@ public class Server extends WebSocketServer {
             
             switch (type) {
                 case "requestConfiguration":
-                    log("⚙️ Solicitud de configuración de " + clientIP);
+                    log("⚙️ Solicitud de configuración de " + player.name);
                     sendGroupConfiguration(conn);
                     break;
                     
                 case "join":
-                    // ✅ MANEJAR MENSAJE DE UNIÓN CON NOMBRE PERSONALIZADO
-                    String playerName = json.optString("playerName", "Jugador");
-                    handlePlayerJoin(conn, playerName, clientIP);
+                    String playerName = json.optString("playerName", player.name);
+                    handlePlayerJoin(player, playerName);
                     break;
                     
                 case "playerReady":
-                    // ✅ MANEJAR JUGADOR LISTO
-                    handlePlayerReady(conn, clientIP);
+                    handlePlayerReady(player);
+                    break;
+                    
+                case "leaveGame":
+                    handleLeaveGame(player);
+                    break;
+                    
+                case "findGame":
+                    handleFindGame(player);
                     break;
                     
                 default:
@@ -101,113 +188,283 @@ public class Server extends WebSocketServer {
             }
         } catch (Exception e) {
             log("❌ Error procesando mensaje: " + e.getMessage());
-            // ✅ ENVIAR MENSAJE DE ERROR AL CLIENTE
-            JSONObject errorMsg = new JSONObject();
-            errorMsg.put("type", "error");
-            errorMsg.put("message", "Error procesando mensaje: " + e.getMessage());
-            conn.send(errorMsg.toString());
+            sendError(conn, "Error procesando mensaje: " + e.getMessage());
         }
     }
     
-    // ✅ NUEVO MÉTODO: MANEJAR UNIÓN DE JUGADOR CON NOMBRE PERSONALIZADO
-    private void handlePlayerJoin(WebSocket conn, String playerName, String clientIP) {
-        log("🎮 Jugador se une: " + playerName + " (" + clientIP + ")");
+    // ✅ MANEJAR UNIÓN DE JUGADOR CON NOMBRE PERSONALIZADO
+    private void handlePlayerJoin(Player player, String newName) {
+        log("🎮 Jugador cambia nombre: " + player.name + " → " + newName);
+        player.name = newName;
         
-        // ✅ ACTUALIZAR NOMBRE DEL JUGADOR
-        playerNames.add(playerName);
-        
-        // ✅ ENVIAR CONFIRMACIÓN AL JUGADOR
+        // ✅ ENVIAR CONFIRMACIÓN
         JSONObject welcomeMsg = new JSONObject();
         welcomeMsg.put("type", "welcome");
-        welcomeMsg.put("message", "Bienvenido " + playerName);
-        welcomeMsg.put("playerName", playerName);
-        conn.send(welcomeMsg.toString());
+        welcomeMsg.put("message", "Bienvenido " + newName);
+        welcomeMsg.put("playerName", newName);
+        player.connection.send(welcomeMsg.toString());
         
-        // ✅ NOTIFICAR A TODOS SOBRE EL NUEVO JUGADOR
-        JSONObject playerJoinedMsg = new JSONObject();
-        playerJoinedMsg.put("type", "playerJoined");
-        playerJoinedMsg.put("playerName", playerName);
-        playerJoinedMsg.put("playerIndex", connections.size() - 1);
-        broadcastToAll(playerJoinedMsg.toString());
-        
-        // ✅ ACTUALIZAR LISTA COMPLETA
-        broadcastPlayerList();
+        // ✅ NOTIFICAR A TODOS SOBRE EL CAMBIO
+        broadcastGameState();
     }
     
-    // ✅ NUEVO MÉTODO: MANEJAR JUGADOR LISTO
-    private void handlePlayerReady(WebSocket conn, String clientIP) {
-        log("✅ Jugador listo: " + clientIP);
+    // ✅ MANEJAR JUGADOR LISTO
+    private void handlePlayerReady(Player player) {
+        log("✅ Jugador listo: " + player.name);
+        
+        // ✅ SI YA ESTÁ EN JUEGO, NO HACER NADA
+        if (player.status == PlayerStatus.IN_GAME) {
+            sendError(player.connection, "Ya estás en una partida");
+            return;
+        }
+        
+        // ✅ AGREGAR/MOVER A DISPONIBLES
+        addToAvailablePlayers(player);
         
         // ✅ ENVIAR CONFIRMACIÓN
         JSONObject readyMsg = new JSONObject();
         readyMsg.put("type", "playerReadyConfirmed");
-        readyMsg.put("message", "Jugador marcado como listo");
-        conn.send(readyMsg.toString());
+        readyMsg.put("message", "Estás en la cola de espera");
+        player.connection.send(readyMsg.toString());
+        
+        // ✅ INTENTAR CREAR PARTIDA
+        tryCreateGame();
     }
     
-    // ✅ NUEVO MÉTODO: ENVIAR LISTA DE JUGADORES A TODOS LOS CLIENTES
-    private void broadcastPlayerList() {
-        JSONObject playersMsg = new JSONObject();
-        playersMsg.put("type", "playersUpdate");
-        
-        JSONArray playersArray = new JSONArray();
-        int index = 0;
-        
-        // ✅ CREAR ARRAY CON TODOS LOS JUGADORES CONECTADOS
-        for (String playerName : playerNames) {
-            JSONObject playerObj = new JSONObject();
-            playerObj.put("index", index);
-            playerObj.put("name", playerName);
-            playerObj.put("connected", true);
-            playerObj.put("ready", false); // Por defecto no listo
-            playersArray.put(playerObj);
-            index++;
-            
-            if (index >= 2) break; // Máximo 2 jugadores para SpacePong
+    // ✅ MANEJAR BUSCAR PARTIDA
+    private void handleFindGame(Player player) {
+        log("🎯 Jugador busca partida: " + player.name);
+        handlePlayerReady(player); // Misma lógica que ready
+    }
+    
+    // ✅ MANEJAR ABANDONAR PARTIDA
+    private void handleLeaveGame(Player player) {
+        if (player.status == PlayerStatus.IN_GAME && player.currentGameId != null) {
+            log("🚪 Jugador abandona partida: " + player.name);
+            endGame(player.currentGameId, player.name + " abandonó la partida");
+        } else {
+            log("ℹ️ Jugador sale de la cola: " + player.name);
+            availablePlayers.remove(player);
+            broadcastGameState();
         }
-        
-        playersMsg.put("players", playersArray);
-        playersMsg.put("totalPlayers", connections.size());
-        playersMsg.put("maxPlayers", 2); // SpacePong es para 2 jugadores
-        
-        String messageStr = playersMsg.toString();
-        broadcastToAll(messageStr);
-        
-        log("📢 Lista de jugadores enviada: " + connections.size() + " jugadores conectados");
     }
     
-    // ✅ NUEVO MÉTODO: INICIAR COUNTDOWN DEL JUEGO
-    private void startGameCountdown() {
-        log("⏱️ Iniciando countdown para 2 jugadores...");
+    // ✅ AGREGAR JUGADOR A DISPONIBLES
+    private void addToAvailablePlayers(Player player) {
+        if (player.status != PlayerStatus.IN_GAME && !availablePlayers.contains(player)) {
+            availablePlayers.offer(player);
+            player.status = PlayerStatus.AVAILABLE;
+            log("➕ Jugador disponible: " + player.name + " | En cola: " + availablePlayers.size());
+        }
+    }
+    
+    // ✅ INTENTAR CREAR PARTIDA
+    private void tryCreateGame() {
+        while (availablePlayers.size() >= 2) {
+            Player player1 = availablePlayers.poll();
+            Player player2 = availablePlayers.poll();
+            
+            if (player1 != null && player2 != null && 
+                player1.connection.isOpen() && player2.connection.isOpen()) {
+                
+                createGame(player1, player2);
+            }
+        }
+    }
+    
+    // ✅ MODIFICA EL MÉTODO createGame PARA DAR TIEMPO A MOSTRAR INFORMACIÓN
+    private void createGame(Player player1, Player player2) {
+        GameSession game = new GameSession(player1, player2);
+        activeGames.put(game.gameId, game);
         
-        // ✅ COUNTDOWN DE 5 SEGUNDOS
-        for (int i = 5; i >= 0; i--) {
-            final int count = i;
+        log("🎮 NUEVA PARTIDA CREADA: " + game.gameId);
+        log("   👤 Jugador 1: " + player1.name);
+        log("   👤 Jugador 2: " + player2.name);
+        
+        // ✅ NOTIFICAR A LOS JUGADORES
+        notifyPlayersGameFound(player1, player2, game.gameId);
+        
+        // ✅ ESPERAR 2 SEGUNDOS ANTES DEL COUNTDOWN PARA QUE LOS CLIENTES MUESTREN LA INFO
+        new Thread(() -> {
             try {
-                Thread.sleep(1000); // Esperar 1 segundo entre cada número
+                log("⏳ Esperando 2 segundos antes del countdown...");
+                Thread.sleep(2000); // Dar tiempo a los clientes para mostrar la información
                 
-                JSONObject countdownMsg = new JSONObject();
-                countdownMsg.put("type", "countdown");
-                countdownMsg.put("value", count);
-                countdownMsg.put("message", count == 0 ? "¡GO!" : "Iniciando en " + count);
+                // ✅ INICIAR COUNTDOWN DE LA PARTIDA
+                startGameCountdown(game);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                endGame(game.gameId, "Error al iniciar countdown");
+            }
+        }).start();
+    }
+    
+    // ✅ NOTIFICAR JUGADORES QUE ENCONTRARON PARTIDA
+    private void notifyPlayersGameFound(Player player1, Player player2, String gameId) {
+        JSONObject gameFoundMsg = new JSONObject();
+        gameFoundMsg.put("type", "gameFound");
+        gameFoundMsg.put("gameId", gameId);
+        gameFoundMsg.put("opponentName", player2.name);
+        gameFoundMsg.put("playerIndex", 0);
+        player1.connection.send(gameFoundMsg.toString());
+        
+        gameFoundMsg.put("opponentName", player1.name);
+        gameFoundMsg.put("playerIndex", 1);
+        player2.connection.send(gameFoundMsg.toString());
+    }
+    
+    // ✅ INICIAR COUNTDOWN DE PARTIDA
+    private void startGameCountdown(GameSession game) {
+        game.status = GameStatus.COUNTDOWN;
+        
+        new Thread(() -> {
+            try {
+                // ✅ COUNTDOWN DE 3 SEGUNDOS
+                for (int i = 3; i >= 0; i--) {
+                    final int count = i;
+                    
+                    JSONObject countdownMsg = new JSONObject();
+                    countdownMsg.put("type", "countdown");
+                    countdownMsg.put("value", count);
+                    countdownMsg.put("gameId", game.gameId);
+                    countdownMsg.put("message", count == 0 ? "¡GO!" : "Iniciando en " + count);
+                    
+                    // ✅ ENVIAR A AMBOS JUGADORES
+                    if (game.player1.connection.isOpen()) {
+                        game.player1.connection.send(countdownMsg.toString());
+                    }
+                    if (game.player2.connection.isOpen()) {
+                        game.player2.connection.send(countdownMsg.toString());
+                    }
+                    
+                    log("⏱️ Countdown [" + game.gameId + "]: " + count);
+                    Thread.sleep(1000);
+                    
+                    // ✅ VERIFICAR SI ALGÚN JUGADOR SE DESCONECTÓ
+                    if (!game.player1.connection.isOpen() || !game.player2.connection.isOpen()) {
+                        endGame(game.gameId, "Jugador desconectado durante countdown");
+                        return;
+                    }
+                }
                 
-                broadcastToAll(countdownMsg.toString());
+                // ✅ INICIAR JUEGO
+                game.status = GameStatus.PLAYING;
+                JSONObject gameStartMsg = new JSONObject();
+                gameStartMsg.put("type", "gameStart");
+                gameStartMsg.put("gameId", game.gameId);
+                gameStartMsg.put("message", "¡La partida ha comenzado!");
                 
-                log("⏱️ Countdown: " + count);
+                if (game.player1.connection.isOpen()) {
+                    game.player1.connection.send(gameStartMsg.toString());
+                }
+                if (game.player2.connection.isOpen()) {
+                    game.player2.connection.send(gameStartMsg.toString());
+                }
+                
+                log("🎯 PARTIDA INICIADA: " + game.gameId);
                 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                break;
+                endGame(game.gameId, "Countdown interrumpido");
+            }
+        }).start();
+    }
+    
+    // ✅ TERMINAR PARTIDA
+    private void endGame(String gameId, String reason) {
+        GameSession game = activeGames.remove(gameId);
+        if (game != null) {
+            log("🏁 Partida terminada: " + gameId + " - Razón: " + reason);
+            game.status = GameStatus.FINISHED;
+            
+            // ✅ LIBERAR JUGADORES
+            if (game.player1 != null) {
+                game.player1.status = PlayerStatus.AVAILABLE;
+                game.player1.currentGameId = null;
+                addToAvailablePlayers(game.player1);
+            }
+            if (game.player2 != null) {
+                game.player2.status = PlayerStatus.AVAILABLE;
+                game.player2.currentGameId = null;
+                addToAvailablePlayers(game.player2);
+            }
+            
+            // ✅ NOTIFICAR FIN DE PARTIDA
+            JSONObject gameEndMsg = new JSONObject();
+            gameEndMsg.put("type", "gameEnd");
+            gameEndMsg.put("gameId", gameId);
+            gameEndMsg.put("reason", reason);
+            
+            if (game.player1 != null && game.player1.connection.isOpen()) {
+                game.player1.connection.send(gameEndMsg.toString());
+            }
+            if (game.player2 != null && game.player2.connection.isOpen()) {
+                game.player2.connection.send(gameEndMsg.toString());
+            }
+            
+            // ✅ ACTUALIZAR ESTADO GLOBAL
+            broadcastGameState();
+            
+            // ✅ INTENTAR CREAR NUEVAS PARTIDAS
+            tryCreateGame();
+        }
+    }
+    
+    // ✅ BROADCAST ESTADO ACTUAL DEL JUEGO
+    private void broadcastGameState() {
+        JSONObject stateMsg = new JSONObject();
+        stateMsg.put("type", "gameState");
+        
+        // ✅ JUGADORES DISPONIBLES
+        JSONArray availableArray = new JSONArray();
+        for (Player player : players.values()) {
+            if (player.status == PlayerStatus.AVAILABLE) {
+                JSONObject playerObj = new JSONObject();
+                playerObj.put("id", player.id);
+                playerObj.put("name", player.name);
+                playerObj.put("status", "available");
+                availableArray.put(playerObj);
             }
         }
+        stateMsg.put("availablePlayers", availableArray);
         
-        // ✅ INICIAR JUEGO
-        JSONObject gameStartMsg = new JSONObject();
-        gameStartMsg.put("type", "gameStart");
-        gameStartMsg.put("message", "¡El juego ha comenzado!");
-        broadcastToAll(gameStartMsg.toString());
+        // ✅ PARTIDAS ACTIVAS
+        JSONArray gamesArray = new JSONArray();
+        for (GameSession game : activeGames.values()) {
+            JSONObject gameObj = new JSONObject();
+            gameObj.put("gameId", game.gameId);
+            gameObj.put("player1", game.player1.name);
+            gameObj.put("player2", game.player2.name);
+            gameObj.put("status", game.status.toString());
+            gamesArray.put(gameObj);
+        }
+        stateMsg.put("activeGames", gamesArray);
         
-        log("🎯 ¡JUEGO INICIADO!");
+        // ✅ ESTADÍSTICAS
+        stateMsg.put("totalPlayers", players.size());
+        stateMsg.put("availablePlayersCount", getAvailablePlayersCount());
+        stateMsg.put("activeGamesCount", activeGames.size());
+        stateMsg.put("playersInGame", getPlayersInGameCount());
+        
+        broadcastToAll(stateMsg.toString());
+    }
+    
+    // ✅ MÉTODOS UTILITARIOS
+    private int getAvailablePlayersCount() {
+        return availablePlayers.size();
+    }
+    
+    private int getPlayersInGameCount() {
+        return (int) players.values().stream()
+                .filter(p -> p.status == PlayerStatus.IN_GAME)
+                .count();
+    }
+    
+    private void sendError(WebSocket conn, String message) {
+        JSONObject errorMsg = new JSONObject();
+        errorMsg.put("type", "error");
+        errorMsg.put("message", message);
+        conn.send(errorMsg.toString());
     }
     
     @Override
@@ -220,9 +477,9 @@ public class Server extends WebSocketServer {
     
     @Override
     public void onStart() {
-        log("🚀 SpacePong Server WebSocket - Puerto 3000");
+        log("🚀 SpacePong Server - Sistema de Gestión de Partidas");
         log("📍 Grupo: " + groupName);
-        log("✅ Servidor listo para múltiples jugadores (máximo 2)");
+        log("✅ Servidor listo en puerto 3000");
     }
     
     private void sendGroupConfiguration(WebSocket conn) {
@@ -233,52 +490,27 @@ public class Server extends WebSocketServer {
         payload.put("maxPlayers", 2);
         payload.put("gameName", "SpacePong");
         conn.send(payload.toString());
-        
-        String clientIP = conn.getRemoteSocketAddress().getAddress().getHostAddress();
-        log("📤 Configuración enviada a " + clientIP);
     }
 
     private String getGroupNameFromJson() {
         try (JsonReader jsonReader = Json.createReader(new FileReader("config/groups.json"))) {
             JsonObject jsonObject = jsonReader.readObject();
-            String groupName = jsonObject.getString("name");
-            return groupName;
+            return jsonObject.getString("name");
         } catch (IOException e) {
-            e.printStackTrace();
+            return "SpacePong";
         }
-        return "SpacePong"; // Valor por defecto
     }
     
-    private void broadcastToAllExceptSender(String message, WebSocket excludeSender) {
-        synchronized (connections) {
-            int sentCount = 0;
-            for (WebSocket client : connections) {
-                if (client != excludeSender && client.isOpen()) {
-                    client.send(message);
-                    sentCount++;
-                }
-            }
-            log("📢 Mensaje enviado a " + sentCount + " clientes (excluyendo remitente)");
-        }
-    }
-
     private void broadcastToAll(String message) {
-        synchronized (connections) {
-            int sentCount = 0;
-            for (WebSocket client : connections) {
+        synchronized (allConnections) {
+            for (WebSocket client : allConnections) {
                 if (client.isOpen()) {
                     client.send(message);
-                    sentCount++;
                 }
             }
-            log("📢 Mensaje enviado a " + sentCount + " clientes");
         }
     }
     
-    public String getGroupName() {
-        return groupName;
-    }
-
     private void log(String text) {
         System.out.println(text);
     }
@@ -287,7 +519,7 @@ public class Server extends WebSocketServer {
         Server server = new Server(new InetSocketAddress(3000));
         server.start();
         System.out.println("🛑 Servidor SpacePong ejecutándose en puerto 3000");
-        System.out.println("📍 Máximo 2 jugadores");
+        System.out.println("🎮 Sistema de gestión de partidas activo");
         System.out.println("⏹️  Presiona Ctrl+C para detener");
     }
 }
