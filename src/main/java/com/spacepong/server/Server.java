@@ -182,6 +182,10 @@ public class Server extends WebSocketServer {
                 case "findGame":
                     handleFindGame(player);
                     break;
+
+                case "register":
+                    handleRegister(conn, player, json.getString("clientName"));
+                    break;
                     
                 default:
                     log("'type' no controlado: " + type);
@@ -247,6 +251,28 @@ public class Server extends WebSocketServer {
             availablePlayers.remove(player);
             broadcastGameState();
         }
+    }
+
+    private void handleRegister(WebSocket conn, Player player, String clientName) {
+        JSONObject json = new JSONObject();
+        if (isNameAlreadyRegistered(clientName)) {
+            json.put("type", "denyRegister");
+            json.put("reason", "name is already in use by someone else");
+        } else {
+            json.put("type", "acceptRegister");
+            player.name = clientName;
+            broadcastGameState();
+        }
+        conn.send(json.toString());
+    }
+
+    private boolean isNameAlreadyRegistered(String newName) {
+        for (Player player : players.values()) {
+            if (player.name.equals(newName)) {
+                return true;
+            }
+        }    
+        return false;
     }
     
     // ✅ AGREGAR JUGADOR A DISPONIBLES
