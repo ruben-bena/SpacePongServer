@@ -2,6 +2,7 @@ package com.spacepong.server;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Set;
@@ -86,12 +87,15 @@ public class Server extends WebSocketServer {
     }
 
     private String getGroupNameFromJson() {
-        try (JsonReader jsonReader = Json.createReader(new FileReader("config/groups.json"))) {
+
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("groups.json");
+
+        try (JsonReader jsonReader = Json.createReader(inputStream)) {
             JsonObject jsonObject = jsonReader.readObject();
             System.out.println(jsonObject);
             String groupName = jsonObject.getString("name");
             return groupName;
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null; // TODO Esto es una chapuza
