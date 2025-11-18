@@ -3,18 +3,23 @@ package com.spacepong.server;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.Collections;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import jakarta.json.Json;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonReader;
 
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 
 public class Server extends WebSocketServer {
     private Set<WebSocket> allConnections = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -104,7 +109,7 @@ public class Server extends WebSocketServer {
         
         // ✅ ENVIAR INFORMACIÓN DEL JUGADOR CREADO
         JSONObject playerInfo = new JSONObject();
-        playerInfo.put("type", "playerCreated");
+        playerInfo.put(MessageType.K_TYPE, "playerCreated");
         playerInfo.put("playerId", newPlayer.id);
         playerInfo.put("playerName", playerName);
         playerInfo.put("playerIndex", players.size() - 1);
@@ -158,10 +163,10 @@ public class Server extends WebSocketServer {
         
         try {
             JSONObject json = new JSONObject(message);
-            String type = json.getString("type");
+            String type = json.getString(MessageType.K_TYPE);
             
             switch (type) {
-                case "requestConfiguration":
+                case MessageType.T_REQUEST_CONFIGURATION:
                     log("⚙️ Solicitud de configuración de " + player.name);
                     sendGroupConfiguration(conn);
                     break;
@@ -183,8 +188,14 @@ public class Server extends WebSocketServer {
                     handleFindGame(player);
                     break;
 
-                case "register":
+                case MessageType.T_REGISTER:
                     handleRegister(conn, player, json.getString("clientName"));
+                    break;
+
+                case MessageType.T_MOVE:
+                    break;
+
+                case MessageType.T_EXIT:
                     break;
                     
                 default:
@@ -203,7 +214,7 @@ public class Server extends WebSocketServer {
         
         // ✅ ENVIAR CONFIRMACIÓN
         JSONObject welcomeMsg = new JSONObject();
-        welcomeMsg.put("type", "welcome");
+        welcomeMsg.put(MessageType.K_TYPE, "welcome");
         welcomeMsg.put("message", "Bienvenido " + newName);
         welcomeMsg.put("playerName", newName);
         player.connection.send(welcomeMsg.toString());
@@ -227,7 +238,7 @@ public class Server extends WebSocketServer {
         
         // ✅ ENVIAR CONFIRMACIÓN
         JSONObject readyMsg = new JSONObject();
-        readyMsg.put("type", "playerReadyConfirmed");
+        readyMsg.put(MessageType.K_TYPE, "playerReadyConfirmed");
         readyMsg.put("message", "Estás en la cola de espera");
         player.connection.send(readyMsg.toString());
         
@@ -256,10 +267,10 @@ public class Server extends WebSocketServer {
     private void handleRegister(WebSocket conn, Player player, String clientName) {
         JSONObject json = new JSONObject();
         if (isNameAlreadyRegistered(clientName)) {
-            json.put("type", "denyRegister");
-            json.put("reason", "name is already in use by someone else");
+            json.put(MessageType.K_TYPE, MessageType.T_DENY_REGISTER);
+            json.put(MessageType.F_REASON, "name is already in use by someone else");
         } else {
-            json.put("type", "acceptRegister");
+            json.put(MessageType.K_TYPE, MessageType.T_ACCEPT_REGISTER);
             player.name = clientName;
             broadcastGameState();
         }
@@ -328,7 +339,7 @@ public class Server extends WebSocketServer {
     // ✅ NOTIFICAR JUGADORES QUE ENCONTRARON PARTIDA
     private void notifyPlayersGameFound(Player player1, Player player2, String gameId) {
         JSONObject gameFoundMsg = new JSONObject();
-        gameFoundMsg.put("type", "gameFound");
+        gameFoundMsg.put(MessageType.K_TYPE, "gameFound");
         gameFoundMsg.put("gameId", gameId);
         gameFoundMsg.put("opponentName", player2.name);
         gameFoundMsg.put("playerIndex", 0);
@@ -350,7 +361,7 @@ public class Server extends WebSocketServer {
                     final int count = i;
                     
                     JSONObject countdownMsg = new JSONObject();
-                    countdownMsg.put("type", "countdown");
+                    countdownMsg.put(MessageType.K_TYPE, "countdown");
                     countdownMsg.put("value", count);
                     countdownMsg.put("gameId", game.gameId);
                     countdownMsg.put("message", count == 0 ? "¡GO!" : "Iniciando en " + count);
@@ -376,7 +387,7 @@ public class Server extends WebSocketServer {
                 // ✅ INICIAR JUEGO
                 game.status = GameStatus.PLAYING;
                 JSONObject gameStartMsg = new JSONObject();
-                gameStartMsg.put("type", "gameStart");
+                gameStartMsg.put(MessageType.K_TYPE, MessageType.T_START_GAME);
                 gameStartMsg.put("gameId", game.gameId);
                 gameStartMsg.put("message", "¡La partida ha comenzado!");
                 
@@ -417,9 +428,9 @@ public class Server extends WebSocketServer {
             
             // ✅ NOTIFICAR FIN DE PARTIDA
             JSONObject gameEndMsg = new JSONObject();
-            gameEndMsg.put("type", "gameEnd");
+            gameEndMsg.put(MessageType.K_TYPE, "gameEnd");
             gameEndMsg.put("gameId", gameId);
-            gameEndMsg.put("reason", reason);
+            gameEndMsg.put(MessageType.F_REASON, reason);
             
             if (game.player1 != null && game.player1.connection.isOpen()) {
                 game.player1.connection.send(gameEndMsg.toString());
@@ -439,7 +450,7 @@ public class Server extends WebSocketServer {
     // ✅ BROADCAST ESTADO ACTUAL DEL JUEGO
     private void broadcastGameState() {
         JSONObject stateMsg = new JSONObject();
-        stateMsg.put("type", "gameState");
+        stateMsg.put(MessageType.K_TYPE, MessageType.T_GAME_STATE);
         
         // ✅ JUGADORES DISPONIBLES
         JSONArray availableArray = new JSONArray();
@@ -488,7 +499,7 @@ public class Server extends WebSocketServer {
     
     private void sendError(WebSocket conn, String message) {
         JSONObject errorMsg = new JSONObject();
-        errorMsg.put("type", "error");
+        errorMsg.put(MessageType.K_TYPE, "error");
         errorMsg.put("message", message);
         conn.send(errorMsg.toString());
     }
@@ -511,8 +522,8 @@ public class Server extends WebSocketServer {
     private void sendGroupConfiguration(WebSocket conn) {
         String configMessage = getGroupNameFromJson();
         JSONObject payload = new JSONObject();
-        payload.put("type", "configuration");
-        payload.put("configMessage", configMessage);
+        payload.put(MessageType.K_TYPE, MessageType.T_CONFIGURATION);
+        payload.put(MessageType.F_CONFIG_MESSAGE, configMessage);
         payload.put("maxPlayers", 2);
         payload.put("gameName", "SpacePong");
         conn.send(payload.toString());
