@@ -352,6 +352,15 @@ public class Server extends WebSocketServer {
     // ✅ INICIAR COUNTDOWN DE PARTIDA
     private void startGameCountdown(GameSession game) {
         game.status = GameStatus.COUNTDOWN;
+        // 📢 Enviar inicio de countdown
+        JSONObject startCountdownMsg = new JSONObject();
+        startCountdownMsg.put(MessageType.K_TYPE, MessageType.T_START_COUNTDOWN);
+        if (game.player1.connection.isOpen()) {
+            game.player1.connection.send(startCountdownMsg.toString());
+        }
+        if (game.player2.connection.isOpen()) {
+            game.player2.connection.send(startCountdownMsg.toString());
+        }
         
         new Thread(() -> {
             try {
@@ -385,6 +394,17 @@ public class Server extends WebSocketServer {
                 
                 // ✅ INICIAR JUEGO
                 game.status = GameStatus.PLAYING;
+
+                // 📢 Enviar fin del countdown
+                JSONObject endCountdownMsg = new JSONObject();
+                endCountdownMsg.put(MessageType.K_TYPE, MessageType.T_END_COUNTDOWN);
+                if (game.player1.connection.isOpen()) {
+                    game.player1.connection.send(endCountdownMsg.toString());
+                }
+                if (game.player2.connection.isOpen()) {
+                    game.player2.connection.send(endCountdownMsg.toString());
+                }
+
                 JSONObject gameStartMsg = new JSONObject();
                 gameStartMsg.put(MessageType.K_TYPE, MessageType.T_START_GAME);
                 gameStartMsg.put("gameId", game.gameId);
