@@ -1,15 +1,9 @@
-package com.spacepong.server;
+package com.spacepong.server.enums;
 
 /* 
  * All these keys, type definitions and fields, are documented in the document "API protocols"
  * 
  * https://github.com/Sabrina-rgb9/ScapePongAppRasberry/wiki/API-protocols
- * 
- * 
- * 
- * 
- * 
- * ¡¡¡ IF ITS NOT IN THE DOCUMENTATION, IT SHOULD NOT BE HERE EITHER !!!
  * 
 */
 public interface MessageType {
