@@ -5,7 +5,7 @@ import org.json.JSONObject;
 
 import com.spacepong.server.bbdd.DatabaseLogger;
 
-public class ExitCommand implements Command {
+public class MoveCommand implements Command {
 
     @Override
     public void execute(WebSocket socket, JSONObject json) {
@@ -18,10 +18,11 @@ public class ExitCommand implements Command {
             }
         } catch (Exception ignored) {}
 
-        DatabaseLogger.getInstance().logCommandReceived("EXIT", playerId, null);
+        // Log command received (no player name available here)
+        DatabaseLogger.getInstance().logCommandReceived("MOVE", playerId, null);
 
-        // TODO: implementar lógica de salida / limpieza de sesión
-        DatabaseLogger.getInstance().logGameEvent("PLAYER_EXIT", playerId, null, "Player requested exit");
+        // TODO: implementar lógica de movimiento
+        // Si hay error, registrar con logCommandError
     }
 
 }

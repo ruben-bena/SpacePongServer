@@ -1,4 +1,4 @@
-package cat.iesesteveterradas.utils;
+package com.spacepong.server.bbdd;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

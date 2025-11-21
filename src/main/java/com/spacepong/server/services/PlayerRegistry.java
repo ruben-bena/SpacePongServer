@@ -7,35 +7,36 @@ import org.java_websocket.WebSocket;
 
 import com.spacepong.server.enums.PlayerStatus;
 import com.spacepong.server.model.Player;
+import com.spacepong.server.bbdd.DatabaseLogger;
 
 public class PlayerRegistry {
     private final Map<WebSocket, Player> bySocket = new ConcurrentHashMap<>();
-    private final Map<Player, WebSocket> byPlayer = new ConcurrentHashMap<>();
-    private WebSocket socketRPi;
 
     public void add(WebSocket socket, Player player) {
         bySocket.put(socket, player);
-        byPlayer.put(player, socket);
-        player.updateDateAvalible();
-        Logger.log("Nuevo Player con name=" + player.getName());
-        broadcastToAll("Nº jugadores disponibles = " + countAvaliblePlayers());
+        try {
+            String playerId = socket != null && socket.getRemoteSocketAddress() != null
+                    ? socket.getRemoteSocketAddress().toString()
+                    : (socket != null ? "socket-" + System.identityHashCode(socket) : null);
+            DatabaseLogger.getInstance().logPlayerRegistered(playerId, player.getName());
+        } catch (Exception ignored) {}
     }
 
-    public Player remove(WebSocket socket) {
-        Player player = bySocket.remove(socket);
-        if (player != null) {
-            byPlayer.remove(player);
-            Logger.log("Borrado player con name=" + player.getName());
-        }
-        return player;
+    public boolean remove(WebSocket socket) {
+        if (!bySocket.containsKey(socket)) { return false; }
+        Player p = bySocket.remove(socket);
+        try {
+            String playerId = socket != null && socket.getRemoteSocketAddress() != null
+                    ? socket.getRemoteSocketAddress().toString()
+                    : (socket != null ? "socket-" + System.identityHashCode(socket) : null);
+            String playerName = p != null ? p.getName() : null;
+            DatabaseLogger.getInstance().logConnectionClosed(playerId, playerName, 0, "removed from registry");
+        } catch (Exception ignored) {}
+        return true;
     }
 
     public Player playerBySocket(WebSocket socket) {
         return bySocket.get(socket);
-    }
-
-    public WebSocket socketByPlayer(Player player) {
-        return byPlayer.get(player);
     }
 
     public Map<WebSocket, Player> snapshot() {
@@ -57,8 +58,11 @@ public class PlayerRegistry {
             if (player.getStatus() == PlayerStatus.AVAILABLE) {
                 counter++;
             }
+            if (counter >= 2) {
+                return true;
+            }
         }
-        return counter >= 2;
+        return false;
     }
 
     public Player[] getFirstTwoAvaliblePlayersAndChangeTheirStatus() {
@@ -95,23 +99,4 @@ public class PlayerRegistry {
             player.setStatus(PlayerStatus.IN_GAME);
         }
     }
-
-    public void broadcastToAll(String message) {
-        for (WebSocket socket : snapshot().keySet()) {
-            socket.send(message);
-        }
-    }
-
-    private int countAvaliblePlayers() {
-        int counter = 0;
-        for (Player player : snapshot().values()) {
-            if (player.getStatus() == PlayerStatus.AVAILABLE) {
-                counter++;
-            }
-        }
-        return counter;
-    }
-
-    public void setSocketRPi(WebSocket socket) { this.socketRPi = socket; }
-    public WebSocket getSocketRPi() { return this.socketRPi; }
 }

@@ -1,4 +1,4 @@
-// package com.spacepong.server;
+// package com.spacepong.OldServer;
 
 // import java.io.InputStream;
 // import java.net.InetSocketAddress;
@@ -12,17 +12,18 @@
 
 // import org.java_websocket.WebSocket;
 // import org.java_websocket.handshake.ClientHandshake;
-// import org.java_websocket.server.WebSocketServer;
+// import org.java_websocket.OldServer.WebSocketOldServer;
 // import org.json.JSONArray;
 // import org.json.JSONObject;
-
-// import com.spacepong.server.enums.MessageType;
 
 // import jakarta.json.Json;
 // import jakarta.json.JsonObject;
 // import jakarta.json.JsonReader;
 
-// public class OldServer extends WebSocketServer {
+// import com.spacepong.utils.DatabaseLogger;
+// import com.spacepong.OldServer.MessageType;
+
+// public class OldServer extends WebSocketOldServer {
 //     private Set<WebSocket> allConnections = Collections.newSetFromMap(new ConcurrentHashMap<>());
     
 //     // ✅ SISTEMA MEJORADO DE GESTIÓN DE JUGADORES
@@ -91,6 +92,8 @@
 //     public OldServer(InetSocketAddress address) {
 //         super(address);
 //     }
+
+    
     
 //     @Override
 //     public void onOpen(WebSocket conn, ClientHandshake handshake) {
@@ -103,8 +106,11 @@
 //         players.put(conn, newPlayer);
         
 //         log("🔌 Nuevo jugador: " + playerName + " [" + newPlayer.id + "] desde " + clientIP);
-//         log("👥 Jugadores totales: " + players.size() + " | Disponibles: " + getAvailablePlayersCount());
         
+//         // ✅ REGISTRAR EN LOGS
+//         DatabaseLogger.logEvent("PLAYER_CONNECT", newPlayer.id, playerName, 
+//             null, "Nuevo jugador conectado desde " + clientIP, clientIP);
+            
 //         // ✅ ENVIAR SALUDO INDIVIDUAL
 //         conn.send("Hola " + clientIP);
         
@@ -136,6 +142,9 @@
 //             if (player.status == PlayerStatus.IN_GAME && player.currentGameId != null) {
 //                 endGame(player.currentGameId, "Jugador desconectado");
 //             }
+
+//             DatabaseLogger.logEvent("PLAYER_DISCONNECT", player.id, player.name, 
+//                 player.currentGameId, "Desconexión - Código: " + code + ", Razón: " + reason, null);
             
 //             // ✅ REMOVER DE DISPONIBLES
 //             availablePlayers.remove(player);
@@ -161,6 +170,10 @@
 //         }
         
 //         log("📨 [" + player.name + "] Mensaje: " + message);
+
+//             DatabaseLogger.logEvent("MESSAGE_RECEIVED", player.id, player.name, 
+//             player.currentGameId, "Tipo: " + messageType + " | Contenido: " + truncateMessage(message), clientIP);
+
         
 //         try {
 //             JSONObject json = new JSONObject(message);
@@ -168,41 +181,61 @@
             
 //             switch (type) {
 //                 case MessageType.T_REQUEST_CONFIGURATION:
-//                     log("⚙️ Solicitud de configuración de " + player.name);
+//                     DatabaseLogger.logEvent("CONFIG_REQUEST", player.id, player.name, 
+//                         null, "Solicitud de configuración del grupo", clientIP);
 //                     sendGroupConfiguration(conn);
 //                     break;
                     
 //                 case "join":
 //                     String playerName = json.optString("playerName", player.name);
+//                     DatabaseLogger.logEvent("PLAYER_JOIN", player.id, playerName, 
+//                         null, "Jugador se une/cambia nombre", clientIP);
 //                     handlePlayerJoin(player, playerName);
 //                     break;
                     
 //                 case "playerReady":
+//                     DatabaseLogger.logEvent("PLAYER_READY", player.id, player.name, 
+//                         null, "Jugador marcado como listo para partida", clientIP);
 //                     handlePlayerReady(player);
 //                     break;
                     
 //                 case "leaveGame":
+//                     DatabaseLogger.logEvent("PLAYER_LEAVE", player.id, player.name, 
+//                         player.currentGameId, "Jugador abandona partida/cola", clientIP);
 //                     handleLeaveGame(player);
 //                     break;
                     
 //                 case "findGame":
+//                     DatabaseLogger.logEvent("FIND_GAME", player.id, player.name, 
+//                         null, "Jugador busca partida", clientIP);
 //                     handleFindGame(player);
 //                     break;
 
 //                 case MessageType.T_REGISTER:
-//                     handleRegister(conn, player, json.getString("clientName"));
+//                     String clientName = json.getString("clientName");
+//                     DatabaseLogger.logEvent("PLAYER_REGISTER", player.id, clientName, 
+//                         null, "Registro de jugador con nombre: " + clientName, clientIP);
+//                     handleRegister(conn, player, clientName);
 //                     break;
 
 //                 case MessageType.T_MOVE:
+//                     DatabaseLogger.logEvent("PLAYER_MOVE", player.id, player.name, 
+//                         player.currentGameId, "Movimiento en juego detectado", clientIP);
 //                     break;
 
 //                 case MessageType.T_EXIT:
+//                     DatabaseLogger.logEvent("PLAYER_EXIT", player.id, player.name, 
+//                         player.currentGameId, "Jugador solicita salir del juego", clientIP);
 //                     break;
                     
 //                 default:
+//                     DatabaseLogger.logEvent("UNKNOWN_MESSAGE_TYPE", player.id, player.name, 
+//                         player.currentGameId, "Tipo no controlado: " + type, clientIP);
 //                     log("'type' no controlado: " + type);
 //             }
 //         } catch (Exception e) {
+//             DatabaseLogger.logEvent("MESSAGE_PROCESSING_ERROR", player.id, player.name, 
+//                 player.currentGameId, "Error: " + e.getMessage() + " | Mensaje: " + message, clientIP);
 //             log("❌ Error procesando mensaje: " + e.getMessage());
 //             sendError(conn, "Error procesando mensaje: " + e.getMessage());
 //         }
@@ -318,6 +351,9 @@
 //         log("🎮 NUEVA PARTIDA CREADA: " + game.gameId);
 //         log("   👤 Jugador 1: " + player1.name);
 //         log("   👤 Jugador 2: " + player2.name);
+
+//             DatabaseLogger.logEvent("GAME_CREATED", null, null, game.gameId, 
+//             "Partida entre " + player1.name + " y " + player2.name, null);
         
 //         // ✅ NOTIFICAR A LOS JUGADORES
 //         notifyPlayersGameFound(player1, player2, game.gameId);
@@ -354,6 +390,10 @@
 //     // ✅ INICIAR COUNTDOWN DE PARTIDA
 //     private void startGameCountdown(GameSession game) {
 //         game.status = GameStatus.COUNTDOWN;
+
+//             DatabaseLogger.logEvent("GAME_COUNTDOWN", null, null, game.gameId, 
+//             "Countdown iniciado para partida", null);
+
 //         // 📢 Enviar inicio de countdown
 //         JSONObject startCountdownMsg = new JSONObject();
 //         startCountdownMsg.put(MessageType.K_TYPE, MessageType.T_START_COUNTDOWN);
@@ -535,9 +575,13 @@
     
 //     @Override
 //     public void onStart() {
-//         log("🚀 SpacePong Server - Sistema de Gestión de Partidas");
+//         // ✅ INICIALIZAR BASE DE DATOS DE LOGS
+//         DatabaseLogger.initialize();
+        
+//         log("🚀 SpacePong OldServer - Sistema de Gestión de Partidas");
 //         log("📍 Grupo: " + groupName);
 //         log("✅ Servidor listo en puerto 3000");
+//         log("🗄️  Logs almacenados en: spacepong_logs.db");
 //     }
     
 //     private void sendGroupConfiguration(WebSocket conn) {
@@ -576,8 +620,8 @@
 //     }
     
 //     public static void main(String[] args) throws Exception {
-//         OldServer server = new OldServer(new InetSocketAddress(3000));
-//         server.start();
+//         OldServer OldServer = new OldServer(new InetSocketAddress(3000));
+//         OldServer.start();
 //         System.out.println("🛑 Servidor SpacePong ejecutándose en puerto 3000");
 //         System.out.println("🎮 Sistema de gestión de partidas activo");
 //         System.out.println("⏹️  Presiona Ctrl+C para detener");

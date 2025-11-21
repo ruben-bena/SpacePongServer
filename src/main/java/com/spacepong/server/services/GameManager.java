@@ -2,26 +2,24 @@ package com.spacepong.server.services;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import com.spacepong.server.model.Player;
 
 public class GameManager implements Runnable {
     private volatile boolean running = false;
     private Thread gameThread;
-    private final List<GameSession> currentGames = new ArrayList<>();
+    private List<GameSession> currentGames = new ArrayList<>();
     private final PlayerRegistry playerRegistry;
-    private int nextGameId = 1;
+    private int gameCounter = 1;
 
-    public GameManager(PlayerRegistry playerRegistry) {
+    GameManager(PlayerRegistry playerRegistry) {
         this.playerRegistry = playerRegistry;
-        Logger.log("Creo el objeto GameManager");
     }
     
     public void start() {
         running = true;
         gameThread = new Thread(this);
         gameThread.start();
-        Logger.log("llamo al método start() del GameManager");
+        com.spacepong.server.bbdd.DatabaseLogger.getInstance().logServerEvent("GAME_MANAGER_START", "GameManager iniciado");
     }
 
     @Override
@@ -29,8 +27,7 @@ public class GameManager implements Runnable {
         while (running) {
             long startTime = System.currentTimeMillis();
             
-            if (playerRegistry.isAtLeastTwoPlayersAvalible()) {
-                Logger.log("Hay al menos 2 jugadores disponibles. Creo un GameSession");
+            while (playerRegistry.isAtLeastTwoPlayersAvalible()) {
                 createGameSession();
             }
             updateCurrentGames();
@@ -40,61 +37,33 @@ public class GameManager implements Runnable {
             try {
                 Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
-                playerRegistry.broadcastToAll(e.getMessage());
-                e.printStackTrace();
-            } catch (Exception e) {
-                playerRegistry.broadcastToAll(e.getMessage());
                 e.printStackTrace();
             }
         }
     }
 
     private void createGameSession() {
-        Player[] newGamePlayers = playerRegistry.getFirstTwoAvaliblePlayersAndChangeTheirStatus();
-        Logger.log("Los jugadores del nuevo GameSession son: " + newGamePlayers[0].getName() + ", " + newGamePlayers[1].getName());
-        GameSession newGameSession = new GameSession(newGamePlayers[0], newGamePlayers[1], nextGameId, playerRegistry);
-        currentGames.add(newGameSession);
-        updateNextGameId();
-    }
-
-    private void updateCurrentGames() {
-        for (GameSession gameSession : currentGames) {
-            gameSession.update();
+        // Intentar obtener dos jugadores disponibles desde el registry
+        Player[] players = playerRegistry.getFirstTwoAvaliblePlayersAndChangeTheirStatus();
+        if (players == null || players.length < 2 || players[0] == null || players[1] == null) {
+            return;
         }
+        int gameId = gameCounter++;
+        GameSession gs = new GameSession(players[0], players[1], gameId);
+        currentGames.add(gs);
 
+        String p1Id = null, p2Id = null;
         try {
-            // Usar copia para evitar problemas de concurrencia
-            List<GameSession> gamesCopy = new ArrayList<>(currentGames);
-            for (GameSession gameSession : gamesCopy) {
-                try {
-                    gameSession.update();
-                } catch (Exception e) {
-                    System.err.println("Error en GameSession.update(): " + e.getMessage());
-                    playerRegistry.broadcastToAll(e.getMessage());
-                    e.printStackTrace();
-                    // Remover juego problemático
-                    currentGames.remove(gameSession);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Error crítico en updateCurrentGames: " + e.getMessage());
-            playerRegistry.broadcastToAll(e.getMessage());
-            e.printStackTrace();
-        }
+            // We cannot access sockets here; use player names as identifier for logs
+            p1Id = players[0].getName();
+            p2Id = players[1].getName();
+        } catch (Exception ignored) {}
+        com.spacepong.server.bbdd.DatabaseLogger.getInstance().logGameEvent("GAME_CREATED", p1Id, p2Id, "Partida " + gameId + " creada");
     }
-
-    private void updateNextGameId() {
-        nextGameId++;
-        if (nextGameId <= 0) { nextGameId = 1; } // To manage int overflow
-    }
-
-    public GameSession getPlayerCurrentSession(Player player) {
-        List<GameSession> gamesCopy = new ArrayList<>(currentGames);
-        for (GameSession gameSession : gamesCopy) {
-            if (gameSession.containsThisPlayer(player)) {
-                return gameSession;
-            }
+    private void updateCurrentGames() {
+        // Small heartbeat log for game manager activity (lightweight)
+        if (!currentGames.isEmpty()) {
+            com.spacepong.server.bbdd.DatabaseLogger.getInstance().logServerEvent("GAME_MANAGER_UPDATE", "currentGames=" + currentGames.size());
         }
-        return null;
     }
 }
