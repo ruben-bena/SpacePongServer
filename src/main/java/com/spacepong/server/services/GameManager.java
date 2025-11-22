@@ -8,7 +8,7 @@ import com.spacepong.server.model.Player;
 public class GameManager implements Runnable {
     private volatile boolean running = false;
     private Thread gameThread;
-    private List<GameSession> currentGames = new ArrayList<>();
+    private final List<GameSession> currentGames = new ArrayList<>();
     private final PlayerRegistry playerRegistry;
     private int nextGameId = 1;
 
