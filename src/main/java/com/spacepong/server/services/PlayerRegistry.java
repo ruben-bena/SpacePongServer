@@ -15,12 +15,14 @@ public class PlayerRegistry {
     public void add(WebSocket socket, Player player) {
         bySocket.put(socket, player);
         byPlayer.put(player, socket);
+        Logger.log("Nuevo Player con name=" + player.getName());
     }
 
     public Player remove(WebSocket socket) {
         Player player = bySocket.remove(socket);
         if (player != null) {
             byPlayer.remove(player);
+            Logger.log("Borrado player con name=" + player.getName());
         }
         return player;
     }
