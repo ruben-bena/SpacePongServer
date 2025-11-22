@@ -20,7 +20,8 @@ public interface MessageType {
     String F_UP = "up";
     String F_DOWN = "down";
     String F_REASON = "reason";
-    String F_PLAYERS = "players";
+    String F_PLAYER_1 = "player1";
+    String F_PLAYER_2 = "player2";
     String F_REMAINING_COUNTDOWN = "remainingCountdown";
     String F_WINNER = "winner";
     String F_LOSER = "LOSER";
