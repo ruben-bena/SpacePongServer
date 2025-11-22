@@ -14,7 +14,12 @@ public class PlayingState implements GameState {
 
     @Override
     public void onEnter(GameSession session) {
-        Logger.log("Cambio a PlayingState");
+        Logger.log("Cambio a PlayingState. Aviso a jugadores con un json startGame");
+        JSONObject payloadStartGame = new JSONObject();
+        payloadStartGame.put(MessageType.K_TYPE, MessageType.T_START_GAME);
+        payloadStartGame.put(MessageType.F_PLAYER_1, session.getPlayer1().getName());
+        payloadStartGame.put(MessageType.F_PLAYER_2, session.getPlayer2().getName());
+        session.sendToBothPlayers(payloadStartGame);
     }
 
     @Override
