@@ -15,7 +15,9 @@ public class PlayerRegistry {
     public void add(WebSocket socket, Player player) {
         bySocket.put(socket, player);
         byPlayer.put(player, socket);
+        player.updateDateAvalible();
         Logger.log("Nuevo Player con name=" + player.getName());
+        broadcastToAll("Nº jugadores disponibles = " + countAvaliblePlayers());
     }
 
     public Player remove(WebSocket socket) {
@@ -54,11 +56,8 @@ public class PlayerRegistry {
             if (player.getStatus() == PlayerStatus.AVAILABLE) {
                 counter++;
             }
-            if (counter >= 2) {
-                return true;
-            }
         }
-        return false;
+        return counter >= 2;
     }
 
     public Player[] getFirstTwoAvaliblePlayersAndChangeTheirStatus() {
@@ -94,5 +93,21 @@ public class PlayerRegistry {
         if (snapshot().containsValue(player)) {
             player.setStatus(PlayerStatus.IN_GAME);
         }
+    }
+
+    public void broadcastToAll(String message) {
+        for (WebSocket socket : snapshot().keySet()) {
+            socket.send(message);
+        }
+    }
+
+    private int countAvaliblePlayers() {
+        int counter = 0;
+        for (Player player : snapshot().values()) {
+            if (player.getStatus() == PlayerStatus.AVAILABLE) {
+                counter++;
+            }
+        }
+        return counter;
     }
 }

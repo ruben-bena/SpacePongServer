@@ -3,7 +3,6 @@ package com.spacepong.server.commands;
 import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 
-import com.spacepong.server.Server;
 import com.spacepong.server.enums.MessageType;
 import com.spacepong.server.model.Player;
 import com.spacepong.server.services.PlayerRegistry;
@@ -11,11 +10,9 @@ import com.spacepong.server.services.PlayerRegistry;
 public class RegisterCommand implements Command {
 
     private final PlayerRegistry playerRegistry;
-    private final Server server;
 
-    public RegisterCommand(PlayerRegistry playerRegistry, Server server) {
+    public RegisterCommand(PlayerRegistry playerRegistry) {
         this.playerRegistry = playerRegistry;
-        this.server = server;
     }
 
     @Override
@@ -31,7 +28,7 @@ public class RegisterCommand implements Command {
                 socket,
                 new Player(name)
             );
-            server.broadcastToAll("¡Nuevo jugador registrado! Hola " + name);
+            playerRegistry.broadcastToAll("¡Nuevo jugador registrado! Hola " + name);
         }
         socket.send(payload.toString());
     }

@@ -69,7 +69,7 @@ public class Server extends WebSocketServer {
     private void registerCommands() {
         commandRegistry.register(
             MessageType.T_REGISTER,
-            new RegisterCommand(playerRegistry, this)
+            new RegisterCommand(playerRegistry)
         );
         commandRegistry.register(
             MessageType.T_MOVE,
@@ -83,12 +83,6 @@ public class Server extends WebSocketServer {
             MessageType.T_REQUEST_CONFIGURATION,
             new RequestConfigurationCommand()
         );
-    }
-
-    public void broadcastToAll(String message) {
-        for (WebSocket socket : playerRegistry.snapshot().keySet()) {
-            socket.send(message);
-        }
     }
 
     public static void main(String[] args) throws Exception {
