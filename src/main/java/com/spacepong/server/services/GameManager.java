@@ -12,14 +12,16 @@ public class GameManager implements Runnable {
     private final PlayerRegistry playerRegistry;
     private int nextGameId = 1;
 
-    GameManager(PlayerRegistry playerRegistry) {
+    public GameManager(PlayerRegistry playerRegistry) {
         this.playerRegistry = playerRegistry;
+        Logger.log("Creo el objeto GameManager");
     }
     
     public void start() {
         running = true;
         gameThread = new Thread(this);
         gameThread.start();
+        Logger.log("llamo al método start() del GameManager");
     }
 
     @Override
@@ -28,6 +30,7 @@ public class GameManager implements Runnable {
             long startTime = System.currentTimeMillis();
             
             if (playerRegistry.isAtLeastTwoPlayersAvalible()) {
+                Logger.log("Hay al menos 2 jugadores disponibles. Creo un GameSession");
                 createGameSession();
             }
             updateCurrentGames();
@@ -44,13 +47,16 @@ public class GameManager implements Runnable {
 
     private void createGameSession() {
         Player[] newGamePlayers = playerRegistry.getFirstTwoAvaliblePlayersAndChangeTheirStatus();
+        Logger.log("Los jugadores del nuevo GameSession son: " + newGamePlayers[0].getName() + ", " + newGamePlayers[1].getName());
         GameSession newGameSession = new GameSession(newGamePlayers[0], newGamePlayers[1], nextGameId, playerRegistry);
         currentGames.add(newGameSession);
         updateNextGameId();
     }
 
     private void updateCurrentGames() {
-
+        for (GameSession gameSession : currentGames) {
+            gameSession.update();
+        }
     }
 
     private void updateNextGameId() {
