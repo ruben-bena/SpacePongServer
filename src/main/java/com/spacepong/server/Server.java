@@ -14,16 +14,20 @@ import com.spacepong.server.commands.MoveCommand;
 import com.spacepong.server.commands.RegisterCommand;
 import com.spacepong.server.commands.RequestConfigurationCommand;
 import com.spacepong.server.enums.MessageType;
+import com.spacepong.server.services.GameManager;
 import com.spacepong.server.services.PlayerRegistry;
 
 public class Server extends WebSocketServer {
 
     private final PlayerRegistry playerRegistry = new PlayerRegistry();
     private final CommandRegistry commandRegistry = new CommandRegistry();
+    private final GameManager gameManager;
 
     public Server(InetSocketAddress address) {
         super(address);
         registerCommands();
+        this.gameManager = new GameManager(playerRegistry);
+        gameManager.start();
     }
 
     @Override
