@@ -54,15 +54,9 @@ public class GameSession {
         this.currentState.onExit(this);
         
         switch (newState) {
-            case COUNTDOWN:
-                this.currentState = countdownState;
-                break;
-            case PLAYING:
-                this.currentState = playingState;
-                break;
-            case FINISHED:
-                this.currentState = finishedState;
-                break;
+            case COUNTDOWN -> this.currentState = countdownState;
+            case PLAYING -> this.currentState = playingState;
+            case FINISHED -> this.currentState = finishedState;
         }
         
         this.currentState.onEnter(this);
