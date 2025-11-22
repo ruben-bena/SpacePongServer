@@ -38,4 +38,6 @@ public class Game {
     public void setPaddleP2Y(float newPaddleP2Y) { this.paddleP2Y = newPaddleP2Y; }
     public void setScoreP1(int newScore) { this.scoreP1 = newScore; }
     public void setScoreP2(int newScore) { this.scoreP2 = newScore; }
+
+    public boolean isGameFinished() { return gameFinished; }
 }
