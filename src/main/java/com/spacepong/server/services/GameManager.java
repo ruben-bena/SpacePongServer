@@ -29,7 +29,6 @@ public class GameManager implements Runnable {
         while (running) {
             long startTime = System.currentTimeMillis();
             
-            playerRegistry.broadcastToAll("playerRegistry.isAtLeastTwoPlayersAvalible()=" + playerRegistry.isAtLeastTwoPlayersAvalible());
             if (playerRegistry.isAtLeastTwoPlayersAvalible()) {
                 Logger.log("Hay al menos 2 jugadores disponibles. Creo un GameSession");
                 createGameSession();
