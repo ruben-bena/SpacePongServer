@@ -40,6 +40,10 @@ public class GameManager implements Runnable {
             try {
                 Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
+                playerRegistry.broadcastToAll(e.getMessage());
+                e.printStackTrace();
+            } catch (Exception e) {
+                playerRegistry.broadcastToAll(e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -57,10 +61,40 @@ public class GameManager implements Runnable {
         for (GameSession gameSession : currentGames) {
             gameSession.update();
         }
+
+        try {
+            // Usar copia para evitar problemas de concurrencia
+            List<GameSession> gamesCopy = new ArrayList<>(currentGames);
+            for (GameSession gameSession : gamesCopy) {
+                try {
+                    gameSession.update();
+                } catch (Exception e) {
+                    System.err.println("Error en GameSession.update(): " + e.getMessage());
+                    playerRegistry.broadcastToAll(e.getMessage());
+                    e.printStackTrace();
+                    // Remover juego problemático
+                    currentGames.remove(gameSession);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error crítico en updateCurrentGames: " + e.getMessage());
+            playerRegistry.broadcastToAll(e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void updateNextGameId() {
         nextGameId++;
         if (nextGameId <= 0) { nextGameId = 1; } // To manage int overflow
+    }
+
+    public GameSession getPlayerCurrentSession(Player player) {
+        List<GameSession> gamesCopy = new ArrayList<>(currentGames);
+        for (GameSession gameSession : gamesCopy) {
+            if (gameSession.containsThisPlayer(player)) {
+                return gameSession;
+            }
+        }
+        return null;
     }
 }

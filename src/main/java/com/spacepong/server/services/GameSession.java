@@ -1,5 +1,6 @@
 package com.spacepong.server.services;
 
+import org.java_websocket.WebSocket;
 import org.json.JSONObject;
 
 import com.spacepong.server.enums.StateType;
@@ -63,7 +64,20 @@ public class GameSession {
     }
 
     public void sendToBothPlayers(JSONObject message) {
-        playerRegistry.socketByPlayer(p1).send(message.toString());
-        playerRegistry.socketByPlayer(p2).send(message.toString());
+        WebSocket socket1 = playerRegistry.socketByPlayer(p1);
+        WebSocket socket2 = playerRegistry.socketByPlayer(p2);
+        
+        if (socket1 != null && socket1.isOpen()) {
+            socket1.send(message.toString());
+        }
+        if (socket2 != null && socket2.isOpen()) {
+            socket2.send(message.toString());
+        }
+        boolean lostAnyConnection = socket1 == null || socket2 == null || !socket1.isOpen() || !socket2.isOpen();
+        if (lostAnyConnection) {
+            this.changeState(StateType.FINISHED);
+        }
     }
+
+    public boolean containsThisPlayer(Player player) { return p1 == player || p2 == player; }
 }

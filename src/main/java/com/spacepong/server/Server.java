@@ -10,7 +10,8 @@ import org.json.JSONObject;
 import com.spacepong.server.commands.Command;
 import com.spacepong.server.commands.CommandRegistry;
 import com.spacepong.server.commands.ExitCommand;
-import com.spacepong.server.commands.MoveCommand;
+import com.spacepong.server.commands.MoveAPPCommand;
+import com.spacepong.server.commands.MoveDSKCommand;
 import com.spacepong.server.commands.RegisterCommand;
 import com.spacepong.server.commands.RequestConfigurationCommand;
 import com.spacepong.server.enums.MessageType;
@@ -69,11 +70,15 @@ public class Server extends WebSocketServer {
     private void registerCommands() {
         commandRegistry.register(
             MessageType.T_REGISTER,
-            new RegisterCommand(playerRegistry, this)
+            new RegisterCommand(playerRegistry)
         );
         commandRegistry.register(
-            MessageType.T_MOVE,
-            new MoveCommand() // TODO
+            MessageType.T_MOVE_APP,
+            new MoveAPPCommand(this, playerRegistry)
+        );
+        commandRegistry.register(
+            MessageType.T_MOVE_DSK,
+            new MoveDSKCommand() // TODO
         );
         commandRegistry.register(
             MessageType.T_EXIT,
@@ -85,11 +90,7 @@ public class Server extends WebSocketServer {
         );
     }
 
-    public void broadcastToAll(String message) {
-        for (WebSocket socket : playerRegistry.snapshot().keySet()) {
-            socket.send(message);
-        }
-    }
+    public GameManager getGameManager() { return this.gameManager; }
 
     public static void main(String[] args) throws Exception {
         Server server = new Server(new InetSocketAddress(3000));

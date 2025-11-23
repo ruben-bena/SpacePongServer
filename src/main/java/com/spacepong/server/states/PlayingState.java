@@ -38,8 +38,10 @@ public class PlayingState implements GameState {
 
     @Override
     public void handleMessage(GameSession session, JSONObject message) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'handleMessage'");
+        String type = message.getString(MessageType.K_TYPE);
+        if (type.equals(MessageType.T_MOVE_APP)) {
+            
+        }
     }
 
     public JSONObject generateGameStateJson(GameSession session) {
