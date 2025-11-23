@@ -78,4 +78,6 @@ public class GameSession {
             this.changeState(StateType.FINISHED);
         }
     }
+
+    public boolean containsThisPlayer(Player player) { return p1 == player || p2 == player; }
 }

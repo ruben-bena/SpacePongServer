@@ -87,4 +87,14 @@ public class GameManager implements Runnable {
         nextGameId++;
         if (nextGameId <= 0) { nextGameId = 1; } // To manage int overflow
     }
+
+    public GameSession getPlayerCurrentSession(Player player) {
+        List<GameSession> gamesCopy = new ArrayList<>(currentGames);
+        for (GameSession gameSession : gamesCopy) {
+            if (gameSession.containsThisPlayer(player)) {
+                return gameSession;
+            }
+        }
+        return null;
+    }
 }

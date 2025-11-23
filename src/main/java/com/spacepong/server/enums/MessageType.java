@@ -34,7 +34,8 @@ public interface MessageType {
 
     // SERVER INPUT
     String T_REGISTER = "register";
-    String T_MOVE = "move";
+    String T_MOVE_APP = "moveAPP";
+    String T_MOVE_DSK = "moveDSK";
     String T_EXIT = "exit";
     String T_REQUEST_CONFIGURATION = "requestConfiguration";
 
