@@ -11,6 +11,7 @@ import com.spacepong.server.model.Player;
 public class PlayerRegistry {
     private final Map<WebSocket, Player> bySocket = new ConcurrentHashMap<>();
     private final Map<Player, WebSocket> byPlayer = new ConcurrentHashMap<>();
+    private WebSocket socketRPi;
 
     public void add(WebSocket socket, Player player) {
         bySocket.put(socket, player);
@@ -110,4 +111,7 @@ public class PlayerRegistry {
         }
         return counter;
     }
+
+    public void setSocketRPi(WebSocket socket) { this.socketRPi = socket; }
+    public WebSocket getSocketRPi() { return this.socketRPi; }
 }
