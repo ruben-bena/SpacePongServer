@@ -20,7 +20,8 @@ public interface MessageType {
     String F_UP = "up";
     String F_DOWN = "down";
     String F_REASON = "reason";
-    String F_PLAYERS = "players";
+    String F_PLAYER_1 = "player1";
+    String F_PLAYER_2 = "player2";
     String F_REMAINING_COUNTDOWN = "remainingCountdown";
     String F_WINNER = "winner";
     String F_LOSER = "LOSER";
@@ -33,7 +34,8 @@ public interface MessageType {
 
     // SERVER INPUT
     String T_REGISTER = "register";
-    String T_MOVE = "move";
+    String T_MOVE_APP = "moveAPP";
+    String T_MOVE_DSK = "moveDSK";
     String T_EXIT = "exit";
     String T_REQUEST_CONFIGURATION = "requestConfiguration";
 

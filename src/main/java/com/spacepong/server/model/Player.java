@@ -13,7 +13,6 @@ public class Player {
     public Player(String name) {
         this.name = name;
         this.status = PlayerStatus.AVAILABLE;
-        updateDateAvalible();
     }
 
     public String getName() { return name; }

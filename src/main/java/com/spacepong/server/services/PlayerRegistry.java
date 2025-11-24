@@ -10,19 +10,31 @@ import com.spacepong.server.model.Player;
 
 public class PlayerRegistry {
     private final Map<WebSocket, Player> bySocket = new ConcurrentHashMap<>();
+    private final Map<Player, WebSocket> byPlayer = new ConcurrentHashMap<>();
 
     public void add(WebSocket socket, Player player) {
         bySocket.put(socket, player);
+        byPlayer.put(player, socket);
+        player.updateDateAvalible();
+        Logger.log("Nuevo Player con name=" + player.getName());
+        broadcastToAll("Nº jugadores disponibles = " + countAvaliblePlayers());
     }
 
-    public boolean remove(WebSocket socket) {
-        if (!bySocket.containsKey(socket)) { return false; }
-        bySocket.remove(socket);
-        return true;
+    public Player remove(WebSocket socket) {
+        Player player = bySocket.remove(socket);
+        if (player != null) {
+            byPlayer.remove(player);
+            Logger.log("Borrado player con name=" + player.getName());
+        }
+        return player;
     }
 
     public Player playerBySocket(WebSocket socket) {
         return bySocket.get(socket);
+    }
+
+    public WebSocket socketByPlayer(Player player) {
+        return byPlayer.get(player);
     }
 
     public Map<WebSocket, Player> snapshot() {
@@ -44,11 +56,8 @@ public class PlayerRegistry {
             if (player.getStatus() == PlayerStatus.AVAILABLE) {
                 counter++;
             }
-            if (counter >= 2) {
-                return true;
-            }
         }
-        return false;
+        return counter >= 2;
     }
 
     public Player[] getFirstTwoAvaliblePlayersAndChangeTheirStatus() {
@@ -84,5 +93,21 @@ public class PlayerRegistry {
         if (snapshot().containsValue(player)) {
             player.setStatus(PlayerStatus.IN_GAME);
         }
+    }
+
+    public void broadcastToAll(String message) {
+        for (WebSocket socket : snapshot().keySet()) {
+            socket.send(message);
+        }
+    }
+
+    private int countAvaliblePlayers() {
+        int counter = 0;
+        for (Player player : snapshot().values()) {
+            if (player.getStatus() == PlayerStatus.AVAILABLE) {
+                counter++;
+            }
+        }
+        return counter;
     }
 }
