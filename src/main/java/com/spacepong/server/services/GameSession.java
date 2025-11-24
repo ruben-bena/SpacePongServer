@@ -13,6 +13,8 @@ import com.spacepong.server.states.PlayingState;
 
 public class GameSession {
     private final Player p1, p2;
+    private WebSocket socketRPi;
+    private boolean isRPiConnected = false;
     private final int gameId;
     private final Game game;
     private final PlayerRegistry playerRegistry;
@@ -28,6 +30,10 @@ public class GameSession {
         this.gameId = gameId;
         this.game = new Game();
         this.playerRegistry = playerRegistry;
+        if (playerRegistry.getSocketRPi() != null) {
+            this.socketRPi = playerRegistry.getSocketRPi();
+            isRPiConnected = true;
+        }
 
         this.countdownState = new CountdownState();
         this.playingState = new PlayingState();
@@ -55,9 +61,9 @@ public class GameSession {
         this.currentState.onExit(this);
         
         switch (newState) {
-            case COUNTDOWN -> this.currentState = countdownState;
-            case PLAYING -> this.currentState = playingState;
-            case FINISHED -> this.currentState = finishedState;
+            case COUNTDOWN: this.currentState = countdownState; break;
+            case PLAYING: this.currentState = playingState; break;
+            case FINISHED: this.currentState = finishedState; break;
         }
         
         this.currentState.onEnter(this);
@@ -73,7 +79,11 @@ public class GameSession {
         if (socket2 != null && socket2.isOpen()) {
             socket2.send(message.toString());
         }
-        boolean lostAnyConnection = socket1 == null || socket2 == null || !socket1.isOpen() || !socket2.isOpen();
+        if (isRPiConnected && socketRPi != null && socketRPi.isOpen()) {
+            socketRPi.send(message.toString());
+        }
+        boolean lostAnyConnection = socket1 == null || socket2 == null || !socket1.isOpen() || !socket2.isOpen() || socketRPi == null;
+        if (isRPiConnected) { lostAnyConnection = lostAnyConnection || socketRPi == null; }
         if (lostAnyConnection) {
             this.changeState(StateType.FINISHED);
         }

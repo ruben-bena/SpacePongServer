@@ -13,6 +13,7 @@ import com.spacepong.server.commands.ExitCommand;
 import com.spacepong.server.commands.MoveAPPCommand;
 import com.spacepong.server.commands.MoveDSKCommand;
 import com.spacepong.server.commands.RegisterCommand;
+import com.spacepong.server.commands.RegisterRPiCommand;
 import com.spacepong.server.commands.RequestConfigurationCommand;
 import com.spacepong.server.enums.MessageType;
 import com.spacepong.server.services.GameManager;
@@ -71,6 +72,10 @@ public class Server extends WebSocketServer {
         commandRegistry.register(
             MessageType.T_REGISTER,
             new RegisterCommand(playerRegistry)
+        );
+        commandRegistry.register(
+            MessageType.T_REGISTER_RPI,
+            new RegisterRPiCommand(playerRegistry)
         );
         commandRegistry.register(
             MessageType.T_MOVE_APP,
