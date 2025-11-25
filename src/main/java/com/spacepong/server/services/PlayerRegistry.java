@@ -19,6 +19,18 @@ public class PlayerRegistry {
         player.updateDateAvalible();
         Logger.log("Nuevo Player con name=" + player.getName());
         broadcastToAll("Nº jugadores disponibles = " + countAvaliblePlayers());
+
+        // log base de datos usuario conectado
+
+        com.spacepong.server.bbdd.DatabaseLogger.getInstance().logConnectionOpened();
+        com.spacepong.server.bbdd.DatabaseLogger.getInstance().logPlayerRegistered(player.getName(), player.getName());
+        com.spacepong.server.bbdd.DatabaseLogger.getInstance().logGameEvent(
+            "PLAYER_CONNECTED",
+            player.getName(),
+            player.getName(),
+            "Jugador se ha conectado al servidor"
+        );
+
     }
 
     public Player remove(WebSocket socket) {
@@ -26,6 +38,16 @@ public class PlayerRegistry {
         if (player != null) {
             byPlayer.remove(player);
             Logger.log("Borrado player con name=" + player.getName());
+
+            // log base de datos jugador desconectado
+            com.spacepong.server.bbdd.DatabaseLogger.getInstance().logConnectionClosed(player.getName(), player.getName(), 1000, "Desconexión voluntaria o pérdida de conexión");
+            com.spacepong.server.bbdd.DatabaseLogger.getInstance().logGameEvent(
+                "PLAYER_DISCONNECTED",
+                player.getName(),
+                player.getName(),
+                "Jugador se ha desconectado del servidor"
+            );
+
         }
         return player;
     }

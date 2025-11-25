@@ -1,4 +1,4 @@
-package com.broadcast;
+/* package com.broadcast;
 
 import java.io.*;
 import java.net.*;
@@ -75,4 +75,4 @@ public class ClientHandler implements Runnable {
         System.out.println("🔌 Cliente desconectado: " + clientIP);
         Server.removeClient(this);
     }
-}
+} */

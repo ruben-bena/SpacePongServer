@@ -42,6 +42,16 @@ public class GameSession {
         this.currentState = countdownState;
 
         Logger.log("He creado un objeto GameSession con gameId=" + gameId);
+
+        // log de base de datos INICIO PARTIDA
+
+        com.spacepong.server.bbdd.DatabaseLogger.getInstance().logGameEvent(
+            "GAME_START",
+            null,
+            null,
+            "Partida iniciada entre " + p1.getName() + " y " + p2.getName()
+        );
+
     }
 
     public Player getPlayer1() { return p1; }
@@ -90,4 +100,17 @@ public class GameSession {
     }
 
     public boolean containsThisPlayer(Player player) { return p1 == player || p2 == player; }
+
+
+    public void endSession() {
+        // --- LOG DATABASE: fin de partida ---
+        com.spacepong.server.bbdd.DatabaseLogger.getInstance().logGameEvent(
+            "GAME_END",
+            null,
+            null,
+            "Partida finalizada entre " + p1.getName() + " y " + p2.getName() +
+            ". Resultado: " + game.getScoreP1() + " - " + game.getScoreP2()
+        );
+    }
+
 }
