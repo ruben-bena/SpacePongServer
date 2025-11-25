@@ -83,7 +83,7 @@ public class Server extends WebSocketServer {
         );
         commandRegistry.register(
             MessageType.T_MOVE_DSK,
-            new MoveDSKCommand() // TODO
+            new MoveDSKCommand(this, playerRegistry) // TODO
         );
         commandRegistry.register(
             MessageType.T_EXIT,
