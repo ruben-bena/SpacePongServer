@@ -30,6 +30,7 @@ public class GameManager implements Runnable {
             long startTime = System.currentTimeMillis();
             
             if (playerRegistry.isAtLeastTwoPlayersAvalible()) {
+                // SQLiteLogger.log("Hay al menos 2 jugadores disponibles. Creo un GameSession");
                 Logger.log("Hay al menos 2 jugadores disponibles. Creo un GameSession");
                 createGameSession();
             }
@@ -51,6 +52,7 @@ public class GameManager implements Runnable {
 
     private void createGameSession() {
         Player[] newGamePlayers = playerRegistry.getFirstTwoAvaliblePlayersAndChangeTheirStatus();
+        // SQLiteLogger.log("Los jugadores del nuevo GameSession son: " + newGamePlayers[0].getName() + ", " + newGamePlayers[1].getName());
         Logger.log("Los jugadores del nuevo GameSession son: " + newGamePlayers[0].getName() + ", " + newGamePlayers[1].getName());
         GameSession newGameSession = new GameSession(newGamePlayers[0], newGamePlayers[1], nextGameId, playerRegistry);
         currentGames.add(newGameSession);
@@ -74,6 +76,7 @@ public class GameManager implements Runnable {
                     e.printStackTrace();
                     // Remover juego problemático
                     currentGames.remove(gameSession);
+                    // SQLiteLogger.log("Ha habido un error al actualizar la partida -> Partida eliminada");
                 }
             }
         } catch (Exception e) {
