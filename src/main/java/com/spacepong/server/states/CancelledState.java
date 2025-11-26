@@ -11,7 +11,7 @@ public class CancelledState implements GameState {
         JSONObject payloadCancelledGame = new JSONObject();
         payloadCancelledGame.put(MessageType.K_TYPE, MessageType.T_CANCELLED_GAME);
         session.sendToBothPlayers(payloadCancelledGame);
-        // SQLiteLogger.log("Cambio a CancelledState y cierro partida, un cliente ha perdido la conexión. Aviso a clientes disponibles con un json cancelledGame");
+        SQLiteLogger.log("Cambio a CancelledState y cierro partida, un cliente ha perdido la conexión. Aviso a clientes disponibles con un json cancelledGame");
     }
 
     @Override

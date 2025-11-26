@@ -18,7 +18,7 @@ public class PlayerRegistry {
         byPlayer.put(player, socket);
         player.updateDateAvalible();
         Logger.log("Nuevo Player con name=" + player.getName());
-        // SQLiteLogger.log("Nuevo Player con name=" + player.getName());
+        SQLiteLogger.log("Nuevo Player con name=" + player.getName());
         broadcastToAll("Nº jugadores disponibles = " + countAvaliblePlayers());
     }
 
@@ -27,7 +27,7 @@ public class PlayerRegistry {
         if (player != null) {
             byPlayer.remove(player);
             Logger.log("Borrado player con name=" + player.getName());
-            // SQLiteLogger.log("Borrado player con name=" + player.getName());
+            SQLiteLogger.log("Borrado player con name=" + player.getName());
         }
         return player;
     }
