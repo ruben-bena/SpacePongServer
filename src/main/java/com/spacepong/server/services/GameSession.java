@@ -10,6 +10,7 @@ import com.spacepong.server.states.CountdownState;
 import com.spacepong.server.states.FinishedState;
 import com.spacepong.server.states.GameState;
 import com.spacepong.server.states.PlayingState;
+import com.spacepong.server.states.CancelledState;
 
 public class GameSession {
     private final Player p1, p2;
@@ -23,6 +24,7 @@ public class GameSession {
     private final CountdownState countdownState;
     private final PlayingState playingState;
     private final FinishedState finishedState;
+    private final CancelledState cancelledState;
 
     GameSession(Player p1, Player p2, int gameId, PlayerRegistry playerRegistry) {
         this.p1 = p1;
@@ -38,6 +40,7 @@ public class GameSession {
         this.countdownState = new CountdownState();
         this.playingState = new PlayingState();
         this.finishedState = new FinishedState();
+        this.cancelledState = new CancelledState();
 
         this.currentState = countdownState;
 
@@ -74,6 +77,7 @@ public class GameSession {
             case COUNTDOWN: this.currentState = countdownState; break;
             case PLAYING: this.currentState = playingState; break;
             case FINISHED: this.currentState = finishedState; break;
+            case CANCELLED: this.currentState = cancelledState; break;
         }
         
         this.currentState.onEnter(this);
@@ -95,7 +99,9 @@ public class GameSession {
         boolean lostAnyConnection = socket1 == null || socket2 == null || !socket1.isOpen() || !socket2.isOpen() || socketRPi == null;
         if (isRPiConnected) { lostAnyConnection = lostAnyConnection || socketRPi == null; }
         if (lostAnyConnection) {
-            this.changeState(StateType.FINISHED);
+            if (currentState != cancelledState) {
+                this.changeState(StateType.CANCELLED);
+            }
         }
     }
 
