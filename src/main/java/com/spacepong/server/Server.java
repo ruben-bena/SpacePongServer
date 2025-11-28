@@ -28,8 +28,10 @@ public class Server extends WebSocketServer {
     public Server(InetSocketAddress address) {
         super(address);
         registerCommands();
+        SQLiteLogger.log("Commands registrados dentro de clase Server");
         this.gameManager = new GameManager(playerRegistry);
         gameManager.start();
+        SQLiteLogger.log("Objeto GameManager inicializado");
     }
 
     @Override
@@ -48,6 +50,7 @@ public class Server extends WebSocketServer {
         try {
             JSONObject json = new JSONObject(message);
             String type = json.getString(MessageType.K_TYPE);
+            SQLiteLogger.log("Server recibe un mensaje con type=" + type);
             Command command = commandRegistry.get(type);
             if (command == null) {
                 System.out.println("⚠️ Comando desconocido: " + type);
@@ -83,7 +86,7 @@ public class Server extends WebSocketServer {
         );
         commandRegistry.register(
             MessageType.T_MOVE_DSK,
-            new MoveDSKCommand() // TODO
+            new MoveDSKCommand(this, playerRegistry) // TODO
         );
         commandRegistry.register(
             MessageType.T_EXIT,
@@ -100,5 +103,6 @@ public class Server extends WebSocketServer {
     public static void main(String[] args) throws Exception {
         Server server = new Server(new InetSocketAddress(3000));
         server.start();
+        SQLiteLogger.log("Server iniciado en puerto 3000");
     }
 }

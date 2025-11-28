@@ -15,6 +15,7 @@ public class CountdownState implements GameState {
     @Override
     public void onEnter(GameSession session) {
         Logger.log("Cambio a CountdownState");
+        SQLiteLogger.log("La partida pasa al Countdown");
     }
     
     @Override

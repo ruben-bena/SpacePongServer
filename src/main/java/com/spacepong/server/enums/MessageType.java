@@ -50,4 +50,5 @@ public interface MessageType {
     String T_GAME_STATE = "gameState";
     String T_GAME_OUTCOME = "gameOutcome";
     String T_CONFIGURATION = "configuration";
+    String T_CANCELLED_GAME = "cancelledGame";
 }

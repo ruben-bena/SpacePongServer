@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class Logger {
-    private static final boolean isTurnedOn = false;
+    private static final boolean isTurnedOn = true;
     public static void log(String message) {
         if (isTurnedOn) {
             String timestamp = LocalDateTime.now()
